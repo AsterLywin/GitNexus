@@ -7,7 +7,7 @@ test("serializes a rebase todo", () => {
     { id:"1", action:"pick", commit:"abcdef123456", subject:"first", originalIndex:0 },
     { id:"2", action:"squash", commit:"fedcba654321", subject:"second", originalIndex:1 }
   ]);
-  assert.match(todo, /^pick abcdef123456 first\\nsquash fedcba654321 second\\n$/);
+  assert.match(todo, /^pick abcdef123456 first\nsquash fedcba654321 second\n$/);
 });
 
 test("rejects squash as first action", () => {

@@ -28,11 +28,16 @@ export function parseCommitSearch(input: string): CommitSearchQuery {
 }
 
 function tokenize(input: string): string[] {
+  // Split on whitespace, but keep quoted sections (including a qualifier
+  // prefix such as message:"fix login") inside a single token, then strip
+  // the quote characters.
   const result: string[] = [];
-  const pattern = /"([^"]*)"|'([^']*)'|(\S+)/g;
+  const pattern = /(?:[^\s"']|"[^"]*"|'[^']*')+/g;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(input))) {
-    result.push(match[1] ?? match[2] ?? match[3]);
+    result.push(
+      match[0].replace(/"([^"]*)"/g, "$1").replace(/'([^']*)'/g, "$1")
+    );
   }
   return result;
 }

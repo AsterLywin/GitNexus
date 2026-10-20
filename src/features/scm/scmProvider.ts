@@ -22,9 +22,9 @@ export class GitNexusScmProvider implements vscode.Disposable {
     this.scm.inputBox.placeholder = "Commit message";
     this.indexGroup = this.scm.createResourceGroup("staged", "Staged Changes");
     this.worktreeGroup = this.scm.createResourceGroup("changes", "Changes");
-    this.disposables.push(store.onChanged(s => {
+    this.disposables.push(new vscode.Disposable(store.onChanged(s => {
       if (s.identity.rootUri === root.fsPath) this.refresh();
-    }));
+    })));
     this.refresh();
   }
 
@@ -44,14 +44,17 @@ export class GitNexusScmProvider implements vscode.Disposable {
 
   private state(filePath: string, command: string, title: string): vscode.SourceControlResourceState {
     const uri = vscode.Uri.joinPath(this.root, filePath);
-    const state = new vscode.SourceControlResourceState(uri);
-    state.command = { command, title, arguments: [uri] };
-    state.decorations = {
-      tooltip: filePath,
-      strikeThrough: false,
-      faded: false
+    // SourceControlResourceState is an interface in the VS Code API, not a
+    // constructable class — return a plain object implementing it.
+    return {
+      resourceUri: uri,
+      command: { command, title, arguments: [uri] },
+      decorations: {
+        tooltip: filePath,
+        strikeThrough: false,
+        faded: false
+      }
     };
-    return state;
   }
 
   dispose(): void {

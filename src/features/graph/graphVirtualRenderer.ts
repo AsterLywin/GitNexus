@@ -11,7 +11,7 @@ export class GraphVirtualRenderer {
     selectedId?: string
   ): string {
     const height = Math.max(1, (window.endRow - window.startRow) * this.rowHeight);
-    const nodes = window.nodes.map(node => this.nodeSvg(node, selectedId)).join("");
+    const nodes = window.nodes.map(node => this.nodeSvg(node, selectedId, window.startRow)).join("");
     const edges = window.edges.map(edge => this.edgeSvg(edge, window.startRow)).join("");
 
     return `
@@ -21,10 +21,10 @@ export class GraphVirtualRenderer {
       </svg>`;
   }
 
-  private nodeSvg(node: GraphRenderNode, selectedId?: string): string {
-    const y = (node.row - Math.floor(node.row)) * this.rowHeight;
+  private nodeSvg(node: GraphRenderNode, selectedId: string | undefined, startRow: number): string {
+    const y = (node.row - startRow) * this.rowHeight;
     const selected = node.id === selectedId ? ' data-selected="true"' : "";
-    const label = escapeHtml(node.label ?? node.id.slice(0, 8));
+    const label = escapeHtml(node.label || node.id.slice(0, 8));
     return `<g class="commit-node"${selected} data-id="${escapeHtml(node.id)}" transform="translate(${node.laneX},${y})">
       <circle r="${node.id === selectedId ? 7 : 5}"></circle>
       <text x="12" y="4">${label}</text>

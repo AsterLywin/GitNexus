@@ -1,4 +1,5 @@
-import { CommitGraph, GraphNode, GraphEdge } from "../../domain/graph";
+import { CommitGraph, GraphNode } from "../../domain/graph";
+import { GraphDecoration } from "./refDecorations";
 
 export interface GraphViewport {
   x: number;
@@ -9,14 +10,26 @@ export interface GraphViewport {
 }
 
 export interface GraphRenderNode extends GraphNode {
-  lane: number;
   laneX: number;
-  row: number;
+  /** Display label derived from the commit subject. */
+  label: string;
+  /** Display author derived from the commit author name. */
+  author: string;
+  /** Ref label texts decorating this commit (branches, remotes, tags), if any. */
+  refs?: string[];
 }
 
-export interface GraphRenderEdge extends GraphEdge {
+/**
+ * Render-space edge: endpoints are render nodes, not commit ids, so this is
+ * intentionally NOT a subtype of the domain GraphEdge (whose from/to are
+ * GitObjectId strings).
+ */
+export interface GraphRenderEdge {
   from: GraphRenderNode;
   to: GraphRenderNode;
+  fromLane: number;
+  toLane: number;
+  isFirstParent: boolean;
 }
 
 export interface RenderWindow {
@@ -29,13 +42,25 @@ export interface RenderWindow {
 export function createRenderModel(
   graph: CommitGraph,
   rowHeight = 44,
-  laneWidth = 28
+  laneWidth = 28,
+  decorations: GraphDecoration[] = []
 ): { nodes: GraphRenderNode[]; edges: GraphRenderEdge[] } {
+  const refsByCommit = new Map<string, string[]>();
+  for (const decoration of decorations) {
+    refsByCommit.set(
+      decoration.commitId,
+      decoration.labels.map(label => label.text)
+    );
+  }
+
   const nodes: GraphRenderNode[] = graph.nodes.map((node, index) => ({
     ...node,
     lane: node.lane ?? 0,
     laneX: 18 + (node.lane ?? 0) * laneWidth,
-    row: index
+    row: index,
+    label: node.commit?.subject ?? "",
+    author: node.commit?.authorName ?? "",
+    refs: refsByCommit.get(node.id)
   }));
 
   const byId = new Map(nodes.map(n => [n.id, n]));
@@ -43,7 +68,14 @@ export function createRenderModel(
     .map(edge => {
       const from = byId.get(edge.from);
       const to = byId.get(edge.to);
-      return from && to ? { ...edge, from, to } : undefined;
+      if (!from || !to) return undefined;
+      return {
+        from,
+        to,
+        fromLane: edge.fromLane ?? from.lane,
+        toLane: edge.toLane ?? to.lane,
+        isFirstParent: edge.isFirstParent ?? false
+      };
     })
     .filter((x): x is GraphRenderEdge => Boolean(x));
 
