@@ -2,7 +2,7 @@
   "name": "gitnexus",
   "displayName": "GitNexus",
   "description": "Open-source, local-first Git intelligence for VS Code.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "gitnexus",
   "license": "Apache-2.0",
   "repository": {
@@ -33,7 +33,23 @@
     "onCommand:gitnexus.branchRename",
     "onCommand:gitnexus.stashPush",
     "onCommand:gitnexus.stashList",
-    "onCommand:gitnexus.openConflicts"
+    "onCommand:gitnexus.openConflicts",
+    "onCommand:gitnexus.operationContinue",
+    "onCommand:gitnexus.operationSkip",
+    "onCommand:gitnexus.operationAbort",
+    "onCommand:gitnexus.rebaseSkip",
+    "onCommand:gitnexus.rebaseEditTodo",
+    "onCommand:gitnexus.worktreeAdd",
+    "onCommand:gitnexus.worktreeRemove",
+    "onCommand:gitnexus.worktreeMove",
+    "onCommand:gitnexus.worktreeLock",
+    "onCommand:gitnexus.worktreeUnlock",
+    "onCommand:gitnexus.worktreePrune",
+    "onCommand:gitnexus.worktreeOpen",
+    "onCommand:gitnexus.openRebasePlanner",
+    "onCommand:gitnexus.graphNextMatch",
+    "onCommand:gitnexus.graphPreviousMatch",
+    "onView:gitnexus.worktrees"
   ],
   "main": "./dist/src/extension.js",
   "contributes": {
@@ -76,7 +92,7 @@
       },
       {
         "command": "gitnexus.listWorktrees",
-        "title": "GitNexus: List Worktrees"
+        "title": "GitNexus: Worktrees"
       },
       {
         "command": "gitnexus.rebaseStart",
@@ -149,6 +165,54 @@
       {
         "command": "gitnexus.graphPreviousMatch",
         "title": "GitNexus: Graph Previous Match"
+      },
+      {
+        "command": "gitnexus.operationContinue",
+        "title": "GitNexus: Operation: Continue"
+      },
+      {
+        "command": "gitnexus.operationSkip",
+        "title": "GitNexus: Operation: Skip"
+      },
+      {
+        "command": "gitnexus.operationAbort",
+        "title": "GitNexus: Operation: Abort"
+      },
+      {
+        "command": "gitnexus.rebaseSkip",
+        "title": "GitNexus: Rebase: Skip"
+      },
+      {
+        "command": "gitnexus.rebaseEditTodo",
+        "title": "GitNexus: Rebase: Edit Todo (In Progress)"
+      },
+      {
+        "command": "gitnexus.worktreeAdd",
+        "title": "GitNexus: Worktree: Add"
+      },
+      {
+        "command": "gitnexus.worktreeRemove",
+        "title": "GitNexus: Worktree: Remove"
+      },
+      {
+        "command": "gitnexus.worktreeMove",
+        "title": "GitNexus: Worktree: Move"
+      },
+      {
+        "command": "gitnexus.worktreeLock",
+        "title": "GitNexus: Worktree: Lock"
+      },
+      {
+        "command": "gitnexus.worktreeUnlock",
+        "title": "GitNexus: Worktree: Unlock"
+      },
+      {
+        "command": "gitnexus.worktreePrune",
+        "title": "GitNexus: Worktree: Prune"
+      },
+      {
+        "command": "gitnexus.worktreeOpen",
+        "title": "GitNexus: Worktree: Open in New Window"
       }
     ],
     "configuration": {
@@ -166,6 +230,60 @@
           "description": "Default timeout for Git commands."
         }
       }
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "gitnexus.worktrees",
+          "name": "GitNexus Worktrees"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "gitnexus.worktreeAdd",
+          "when": "view == gitnexus.worktrees",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitnexus.worktreePrune",
+          "when": "view == gitnexus.worktrees",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gitnexus.refreshRepository",
+          "when": "view == gitnexus.worktrees",
+          "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "gitnexus.worktreeOpen",
+          "when": "view == gitnexus.worktrees && viewItem =~ /^worktree/",
+          "group": "1_open@1"
+        },
+        {
+          "command": "gitnexus.worktreeMove",
+          "when": "view == gitnexus.worktrees && viewItem =~ /^worktree(?!Main)/",
+          "group": "2_edit@1"
+        },
+        {
+          "command": "gitnexus.worktreeRemove",
+          "when": "view == gitnexus.worktrees && viewItem =~ /^worktree(?!Main)/",
+          "group": "2_edit@2"
+        },
+        {
+          "command": "gitnexus.worktreeLock",
+          "when": "view == gitnexus.worktrees && viewItem =~ /^worktree(Main)?$/",
+          "group": "2_edit@3"
+        },
+        {
+          "command": "gitnexus.worktreeUnlock",
+          "when": "view == gitnexus.worktrees && viewItem =~ /Locked$/",
+          "group": "2_edit@4"
+        }
+      ]
     }
   },
   "scripts": {

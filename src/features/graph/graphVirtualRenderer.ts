@@ -25,9 +25,12 @@ export class GraphVirtualRenderer {
     const y = (node.row - startRow) * this.rowHeight;
     const selected = node.id === selectedId ? ' data-selected="true"' : "";
     const label = escapeHtml(node.label || node.id.slice(0, 8));
+    const refs = node.refs?.length
+      ? `<text class="refs" x="${12 + label.length * 7 + 10}" y="4">[${escapeHtml(node.refs.join(", "))}]</text>`
+      : "";
     return `<g class="commit-node"${selected} data-id="${escapeHtml(node.id)}" transform="translate(${node.laneX},${y})">
       <circle r="${node.id === selectedId ? 7 : 5}"></circle>
-      <text x="12" y="4">${label}</text>
+      <text x="12" y="4">${label}</text>${refs}
     </g>`;
   }
 

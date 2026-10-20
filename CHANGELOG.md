@@ -3,6 +3,29 @@
 All notable changes to GitNexus are documented here.
 Format follows Keep a Changelog; versions follow SemVer once 1.0 ships.
 
+## [0.3.0] — 2026-10-20
+
+### Added
+- Graph panel on the render model: windowed virtual rendering (bounded
+  DOM at any history size), navigator search with next/previous match,
+  and commit actions (checkout, create branch/tag, copy hash)
+- Worktrees explorer view with add/remove/move/lock/unlock/prune/open
+- Three-way conflict view: base/ours/theirs stage documents and an
+  ours ↔ theirs diff, plus operation continue/abort from the panel
+- Generic operation lifecycle commands (continue/skip/abort for merge,
+  rebase, cherry-pick, revert), rebase skip, and in-progress rebase
+  todo editing
+- Derived degradation notices (shallow clone, detached HEAD, no
+  remotes, no tags) in status and the graph panel
+- SCM file decorations: letter badges and Git theme colors per change
+
+### Fixed
+- Declared commands gitnexus.openRebasePlanner, gitnexus.graphNextMatch
+  and gitnexus.graphPreviousMatch had no registrations; all 40 declared
+  commands are now implemented
+- Rebase continue/abort ran through the mutation coordinator without
+  the conflict allowance, so continuing a conflicted rebase failed
+
 ## [0.2.0] — 2026-10-20
 
 First packaged build (developer preview). Produced by the Phase 1–3

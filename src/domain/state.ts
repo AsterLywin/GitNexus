@@ -53,6 +53,13 @@ export function freshDomains(generation: number, observedAt = Date.now()): Fresh
   };
 }
 
+/**
+ * Repository limitations the UI must degrade around (GIT_ENGINE_SPEC
+ * §29): the clone is shallow, HEAD is detached, or there is nothing to
+ * fetch from / tag against.
+ */
+export type DerivedNotice = "shallow-clone" | "detached-head" | "no-remotes" | "no-tags";
+
 /** Layer B — derived state (§27). Always recomputable from Layer A. */
 export interface DerivedState {
   basedOnGeneration: number;
@@ -61,6 +68,7 @@ export interface DerivedState {
   changedFiles: number;
   aheadBehind: Record<string, { ahead: number; behind: number }>;
   conflictPaths: string[];
+  notices: DerivedNotice[];
 }
 
 /** The full Layer A + B snapshot domains attached to a RepositorySnapshot. */

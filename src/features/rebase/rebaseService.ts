@@ -19,7 +19,11 @@ export class RebaseService {
     await this.coordinator.run({
       rootUri: root,
       operation: "rebase",
-      args: ["rebase", `--${action}`]
+      args: ["rebase", `--${action}`],
+      // Lifecycle actions run *during* an operation — frequently while it
+      // is stopped on conflicts — and "continue" must not open an editor.
+      allowDuringConflict: true,
+      env: action === "continue" ? { GIT_EDITOR: "true" } : undefined
     });
   }
 

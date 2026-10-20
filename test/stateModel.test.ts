@@ -21,7 +21,7 @@ function snapshot(partial: Partial<RepositorySnapshot> = {}): RepositorySnapshot
       operation: { phase: "idle", conflictPaths: [] },
       stashes: [],
       submodules: [],
-      derived: { basedOnGeneration: 1, clean: true, conflicted: false, changedFiles: 0, aheadBehind: {}, conflictPaths: [] },
+      derived: { basedOnGeneration: 1, clean: true, conflicted: false, changedFiles: 0, aheadBehind: {}, conflictPaths: [], notices: [] },
       freshness: freshDomains(1)
     },
     ...partial

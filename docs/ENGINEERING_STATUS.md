@@ -183,3 +183,33 @@ coupling Git history retrieval to a specific rendering technology.
 - CI workflow (matrix: Ubuntu/Windows × Node 20/22, npm ci, tests,
   VSIX artifact) is written and held off-repo at Aster's request until
   project completion — the connector cannot push workflow files
+
+## Phase 4 — Feature completion (2026-10-20)
+
+- Graph panel rebuilt on the render model: createRenderModel +
+  getRenderWindow + GraphVirtualRenderer render ~240-row windows that
+  swap on scroll (the old whole-graph renderGraphHtml path and the dead
+  src/ui panel are gone). Search runs through GraphNavigator with
+  next/previous match (toolbar and commands), and selecting a commit
+  exposes Checkout / Branch / Tag / Copy hash actions. Ref decorations
+  ride the model (node refs now render as badges)
+- Worktree UI: explorer tree view with main/locked/prunable state and
+  context menus; add / remove (with force retry) / move / lock / unlock /
+  prune / open commands, all mutations through the coordinator
+- Conflict resolution: stage documents (gitnexus-stage: scheme) serve
+  base/ours/theirs content; the panel gained a 3-way view (ours ↔ theirs
+  diff + base), per-stage open, and an operation banner with
+  continue/abort; the list refreshes after every action
+- Operation lifecycle: OperationService maps merge/rebase/cherry-pick/
+  revert × continue/skip/abort (merge skip correctly rejected) with
+  GIT_EDITOR=true on continue; generic gitnexus.operation* commands;
+  RebaseService.action now allows conflicted state. Rebase skip and
+  in-progress todo editing (gitnexus.rebaseEditTodo) added; the declared
+  but unregistered openRebasePlanner / graphNextMatch /
+  graphPreviousMatch commands are now implemented — all 40 declared
+  commands have real registrations (verified mechanically)
+- Degradation: DerivedState.notices (shallow-clone, detached-head,
+  no-remotes, no-tags) computed from real repository facts; surfaced in
+  status and as a graph-panel notice for shallow clones
+- SCM: resource tooltips carry kind and rename origin; a file decoration
+  provider adds letter badges + Git theme colors from the same snapshot

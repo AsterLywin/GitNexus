@@ -39,6 +39,7 @@ interface DomainServices {
   submodules: SubmoduleService;
   branches: BranchService;
   detector: RepositoryOperationDetector;
+  executor: import("../git/processExecutor").GitProcessExecutor;
 }
 
 const IDLE_OPERATION: DetectedOperation = { phase: "idle", conflictPaths: [] };
@@ -55,6 +56,7 @@ export class RepositoryManager {
   private readonly bus?: RepositoryEventBus;
   private readonly pollIntervalMs: number;
   private readonly debounceMs: number;
+  private readonly shallowByRoot = new Map<string, boolean>();
   private readonly pendingScopes = new Map<string, Set<RefreshScope>>();
   private readonly pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly pollTimers = new Map<string, ReturnType<typeof setInterval>>();
@@ -77,7 +79,8 @@ export class RepositoryManager {
         stashes: new StashService(executor, 10000),
         submodules: new SubmoduleService(executor, 10000),
         branches: new BranchService(executor, 10000),
-        detector: deps.detector ?? new RepositoryOperationDetector(executor, 10000)
+        detector: deps.detector ?? new RepositoryOperationDetector(executor, 10000),
+        executor
       };
     }
     if (this.bus) {
@@ -118,7 +121,8 @@ export class RepositoryManager {
     };
     if (snapshot.domains) {
       snapshot.domains.derived = computeDerived(
-        snapshot, generation, snapshot.domains.derived.aheadBehind
+        snapshot, generation, snapshot.domains.derived.aheadBehind,
+        this.shallowByRoot.get(identity.rootUri) ?? false
       );
     }
 
@@ -226,7 +230,10 @@ export class RepositoryManager {
     await Promise.all(jobs);
 
     if (domains) {
-      domains.derived = computeDerived(snapshot, generation, domains.derived.aheadBehind);
+      domains.derived = computeDerived(
+        snapshot, generation, domains.derived.aheadBehind,
+        this.shallowByRoot.get(rootUri) ?? false
+      );
       fresh("derived");
     }
 
@@ -285,15 +292,21 @@ export class RepositoryManager {
     const settle = async <T,>(job: Promise<T>, fb: T | undefined): Promise<T | undefined> =>
       job.catch(() => fb);
 
-    const [refs, remotes, worktrees, operation, stashes, submodules, branches] = await Promise.all([
+    const [refs, remotes, worktrees, operation, stashes, submodules, branches, shallow] = await Promise.all([
       settle(svc.refs.list(root), fallback?.refs),
       settle(svc.remotes.list(root), fallback?.remotes),
       settle(svc.worktrees.list(root), fallback?.worktrees),
       settle(svc.detector.detect(root), fallback?.operation),
       settle(svc.stashes.list(root), fallback?.stashes),
       settle(svc.submodules.status(root), fallback?.submodules),
-      settle(svc.branches.list(root), undefined)
+      settle(svc.branches.list(root), undefined),
+      settle(
+        svc.executor.exec(["rev-parse", "--is-shallow-repository"], { cwd: root, timeoutMs: 10000 })
+          .then(r => r.stdout.trim() === "true"),
+        fallback?.derived.notices.includes("shallow-clone") ?? false
+      )
     ]);
+    if (shallow !== undefined) this.shallowByRoot.set(root, shallow);
 
     const domains: RepositoryDomains = {
       refs: refs ?? { refs: [], branches: [], remotes: [], tags: [] },
@@ -309,7 +322,8 @@ export class RepositoryManager {
         conflicted: false,
         changedFiles: 0,
         aheadBehind: Object.fromEntries((branches ?? []).map(b => [b.name, { ahead: b.ahead, behind: b.behind }])),
-        conflictPaths: []
+        conflictPaths: [],
+        notices: []
       },
       freshness: freshDomains(generation)
     };
@@ -361,16 +375,23 @@ export class RepositoryManager {
 function computeDerived(
   snapshot: RepositorySnapshot,
   generation: number,
-  aheadBehind: Record<string, { ahead: number; behind: number }>
+  aheadBehind: Record<string, { ahead: number; behind: number }>,
+  shallow = false
 ): DerivedState {
   const operation = snapshot.domains?.operation ?? IDLE_OPERATION;
+  const notices: DerivedState["notices"] = [];
+  if (shallow) notices.push("shallow-clone");
+  if (snapshot.head.detached) notices.push("detached-head");
+  if (snapshot.domains && snapshot.domains.remotes.length === 0) notices.push("no-remotes");
+  if (snapshot.domains && snapshot.domains.refs.tags.length === 0) notices.push("no-tags");
   return {
     basedOnGeneration: generation,
     clean: snapshot.status.isClean,
     conflicted: operation.phase === "conflict" || snapshot.status.entries.some(e => e.kind === "unmerged"),
     changedFiles: snapshot.status.entries.length,
     aheadBehind,
-    conflictPaths: operation.conflictPaths
+    conflictPaths: operation.conflictPaths,
+    notices
   };
 }
 

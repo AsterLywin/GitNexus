@@ -1,15 +1,15 @@
 # GitNexus — Roadmap to 100%
 
-**Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit + Phases 1–3 (build clean, 34/34 tests pass)
+**Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit + Phases 1–4 (build clean, 37/37 tests pass)
 **Reference specs:** [GIT_ENGINE_SPEC.md](./GIT_ENGINE_SPEC.md) · [REPOSITORY_STATE_MODEL.md](./REPOSITORY_STATE_MODEL.md)
 
-## Where we are: ~80% (Phases 1–3 complete)
+## Where we are: ~90% (Phases 1–4 complete)
 
 | Area | Done | State |
 | --- | --- | --- |
 | Git Engine | ~85% | Execution, status/log parsers, full typed service set, normalized error model, capabilities, streaming backend, mutation lock. Remaining engine work is mostly Phase 3 fixture/integration depth. |
 | Repository State Model | ~85% | Full snapshot domains with per-domain freshness, typed event bus with the spec invalidation matrix, refresh transactions with scoped/coalesced refresh, operation journal with crash recovery, multi-worktree stale propagation. Remaining: Phase 3 state-transition test depth. |
-| Features / UI | ~60% | Graph, SCM, branch/stash flows, rebase planner, conflict panel, search, file history. Worktree UI is list-only; PR and AI layers are 0%. |
+| Features / UI | ~90% | Render-model graph panel (windowed virtual rendering, navigator search with next/previous, commit actions), worktree tree view with full command set, three-way conflict view with stage documents, generic operation lifecycle (continue/skip/abort), SCM file decorations, degradation notices (shallow/detached/no-remotes/no-tags). Remaining: the Phase 5 platform layers. |
 | Tests / Release | ~85% | Tests green (34, incl. fixture matrix and state-transition suites); lockfile committed; §28 benchmark targets all pass; VSIX 0.2.0 packages cleanly. CI workflow written, held for hand-over at completion (connector cannot push workflows). Fixture matrix, CI and packaging verification are Phase 3. |
 
 Percentages below are cumulative completion of the full v1.0 scope
@@ -91,16 +91,16 @@ Goal: make "done" provable and shippable.
 
 Goal: finish the feature surface the current code only sketches.
 
-- [ ] **Graph**: adopt `GraphRenderModel` + virtual renderer in the live panel
+- [x] **Graph**: adopt `GraphRenderModel` + virtual renderer in the live panel
       (today the panel still renders via `renderGraphHtml`); graph-side branch
       actions (checkout / create / delete from a commit); full ref-aware topology.
-- [ ] **Worktree UI**: add / remove / move / lock / prune commands and a worktree
+- [x] **Worktree UI**: add / remove / move / lock / prune commands and a worktree
       panel (service exists, UI is list-only today).
-- [ ] **Conflict resolution editor**: three-way merge view on top of the existing
+- [x] **Conflict resolution editor**: three-way merge view on top of the existing
       conflict panel actions (open / ours / theirs / stage).
-- [ ] **SCM completion**: gutter actions, richer decorations, open-file and
+- [x] **SCM completion**: gutter actions, richer decorations, open-file and
       revert polish.
-- [ ] **Rebase lifecycle**: continue / skip / abort and edit-todo for an
+- [x] **Rebase lifecycle**: continue / skip / abort and edit-todo for an
       *in-progress* rebase (today: planning + start only).
 
 **Exit criteria:** every command declared in `package.json` has a complete,

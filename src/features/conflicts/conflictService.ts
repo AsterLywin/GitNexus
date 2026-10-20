@@ -72,4 +72,17 @@ export class ConflictService {
     }
     await this.executor.exec(args, { cwd: root, timeoutMs: 30000 });
   }
+
+  /**
+   * Content of one index stage of a conflicted path:
+   * 1 = base (common ancestor), 2 = ours (HEAD), 3 = theirs (incoming).
+   * A side that deleted the file yields an empty string.
+   */
+  async stageContent(root: string, path: string, stage: 1 | 2 | 3): Promise<string> {
+    const result = await this.executor.exec(
+      ["show", `:${stage}:${path}`],
+      { cwd: root, timeoutMs: 30000 }
+    ).catch(() => undefined);
+    return result?.stdout ?? "";
+  }
 }
