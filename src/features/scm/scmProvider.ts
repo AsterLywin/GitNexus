@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { RepositoryStateStore } from "../../state/repositoryStateStore";
+import { RepositoryStateStore, normalizeRootPath } from "../../state/repositoryStateStore";
 import { GitProcessExecutor } from "../../git/processExecutor";
 
 export class GitNexusScmProvider implements vscode.Disposable {
@@ -23,7 +23,9 @@ export class GitNexusScmProvider implements vscode.Disposable {
     this.indexGroup = this.scm.createResourceGroup("staged", "Staged Changes");
     this.worktreeGroup = this.scm.createResourceGroup("changes", "Changes");
     this.disposables.push(new vscode.Disposable(store.onChanged(s => {
-      if (s.identity.rootUri === root.fsPath) this.refresh();
+      // Git reports roots with forward slashes; fsPath uses native
+      // separators — compare canonical forms (see normalizeRootPath).
+      if (normalizeRootPath(s.identity.rootUri) === normalizeRootPath(root.fsPath)) this.refresh();
     })));
     this.disposables.push(
       vscode.window.registerFileDecorationProvider(new ScmFileDecorationProvider(root, store))

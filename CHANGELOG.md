@@ -3,6 +3,19 @@
 All notable changes to GitNexus are documented here.
 Format follows Keep a Changelog; versions follow SemVer once 1.0 ships.
 
+## [1.0.1] — 2026-10-21
+
+### Fixed
+- Windows path canonicalization: Git reports repository roots with
+  forward slashes (`C:/repo`) while Node/VS Code use backslashes
+  (`C:\repo`), so snapshot-store keys, watcher bus events and the SCM
+  provider's root comparison silently mismatched on Windows — watcher-
+  driven refresh and SCM updates never fired. All root keys now pass
+  through `normalizeRootPath` (separators, drive-letter case, trailing
+  slash) at the store/manager boundary. Caught by the Windows CI matrix
+  (state integration: HEAD_CHANGED bus assertion); the same test now
+  uses the canonical root from the opened snapshot.
+
 ## [1.0.0] — 2026-10-21
 
 First stable release. Both specifications are implemented end to end.

@@ -36,10 +36,16 @@ test("state model: domains, generations, scoped freshness, bus events, mutation 
     const store = new RepositoryStateStore();
     const bus = new RepositoryEventBus();
     const events: RepositoryStateEvent[] = [];
-    bus.subscribe((root, event) => { if (root === dir) events.push(event); });
+    bus.subscribe((emittedRoot, event) => {
+      if (emittedRoot.replace(/\\/g, "/") === root.replace(/\\/g, "/")) events.push(event);
+    });
 
     const manager = new RepositoryManager(git, store, { executor, bus, pollIntervalMs: 0 });
     const first = await manager.open(dir);
+    // Canonical root as Git reports it — on Windows this differs from the
+    // tmpdir form (forward slashes vs backslashes); bus/store traffic must
+    // use this form (see normalizeRootPath).
+    const root = first.identity.rootUri;
 
     // Full domains populated (§4)
     assert.ok(first.domains);
@@ -75,9 +81,9 @@ test("state model: domains, generations, scoped freshness, bus events, mutation 
     // scoped refresh through the manager's own subscription (§15, §19).
     events.length = 0;
     await writeFile(join(dir, "b.txt"), "new\n");
-    bus.emit(dir, { type: "WORKTREE_CHANGED", paths: ["b.txt"] });
+    bus.emit(root, { type: "WORKTREE_CHANGED", paths: ["b.txt"] });
     await delay(600);
-    const afterBus = store.get(dir);
+    const afterBus = store.get(root);
     assert.ok(afterBus && afterBus.status.entries.some(e => e.path === "b.txt"),
       "bus event led to a status refresh that sees the new file");
     await rm(join(dir, "b.txt"));

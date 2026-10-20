@@ -2,7 +2,7 @@
   "name": "gitnexus",
   "displayName": "GitNexus",
   "description": "Open-source, local-first Git intelligence for VS Code.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "gitnexus",
   "license": "Apache-2.0",
   "repository": {

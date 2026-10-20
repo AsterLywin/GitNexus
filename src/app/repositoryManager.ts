@@ -24,7 +24,7 @@ import {
 } from "../git/repositoryFeatures";
 import { SubmoduleService } from "../git/submoduleService";
 import { RepositoryEventBus } from "../state/eventBus";
-import { RepositoryStateStore } from "../state/repositoryStateStore";
+import { RepositoryStateStore, normalizeRootPath } from "../state/repositoryStateStore";
 
 export interface RepositoryManagerDeps {
   executor?: GitProcessExecutor;
@@ -90,7 +90,9 @@ export class RepositoryManager {
     }
     if (this.bus) {
       this.unsubscribeBus = this.bus.subscribe((rootUri, event) => {
-        this.scheduleScopedRefresh(rootUri, scopesForEvent(event));
+        // Watcher events carry native fsPaths; snapshots key on Git's
+        // canonical form. Normalize at the boundary (see store).
+        this.scheduleScopedRefresh(normalizeRootPath(rootUri), scopesForEvent(event));
       });
     }
   }

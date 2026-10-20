@@ -5,6 +5,7 @@ import { INVALIDATION_MATRIX, freshDomains, scopesForEvent } from "../src/domain
 import { diffSnapshotEvents } from "../src/app/repositoryManager";
 import { OperationJournal } from "../src/state/operationJournal";
 import { classifyGitPath } from "../src/features/scm/gitWatcher";
+import { RepositoryStateStore, normalizeRootPath } from "../src/state/repositoryStateStore";
 
 function snapshot(partial: Partial<RepositorySnapshot> = {}): RepositorySnapshot {
   return {
@@ -68,6 +69,22 @@ test("journal marks operations left running across a restart as interrupted", ()
   assert.equal(interrupted[0].type, "rebase");
   // The completed entry survives untouched; nothing is auto-continued.
   assert.equal(restored.list("/r").find(e => e.operationId === doneId)?.status, "success");
+});
+
+test("store keys are canonical across path spellings (Windows separators/case)", () => {
+  assert.equal(normalizeRootPath("C:\\repo\\sub\\"), "c:/repo/sub");
+  assert.equal(normalizeRootPath("C:/repo"), "c:/repo");
+  assert.equal(normalizeRootPath("/tmp/repo/"), "/tmp/repo");
+
+  const store = new RepositoryStateStore();
+  const snap = snapshot();
+  snap.identity = { rootUri: "C:/repo", gitDir: "C:/repo/.git", commonDir: "C:/repo/.git", isBare: false };
+  store.set(snap);
+  assert.equal(store.get("C:\\repo"), snap);
+  assert.equal(store.get("c:/repo/"), snap);
+  assert.equal(store.byCommonDir("C:\\repo\\.git").length, 1);
+  store.delete("C:\\repo");
+  assert.equal(store.get("C:/repo"), undefined);
 });
 
 test("classifies .git paths into typed state events", () => {
