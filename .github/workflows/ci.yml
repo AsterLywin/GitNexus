@@ -1,1 +1,42 @@
+name: CI
 
+# HELD FILE — not yet in the repository.
+# Aster asked (2026-10-20) to keep this with the assistant until the
+# project is complete, then add it at .github/workflows/ci.yml.
+# (The GitHub connector cannot push workflow files: 403, integration
+# lacks the `workflows` permission.)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [20, 22]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - name: Install (locked)
+        run: npm ci
+      - name: Build + unit and integration tests
+        run: npm test
+      - name: Package (ubuntu + node 22 only)
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 22
+        run: npx @vscode/vsce package --out gitnexus-${{ github.sha }}.vsix
+      - name: Upload VSIX artifact
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 22
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitnexus-vsix
+          path: "*.vsix"
+          if-no-files-found: error
