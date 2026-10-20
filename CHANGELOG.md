@@ -1,0 +1,58 @@
+# Changelog
+
+All notable changes to GitNexus are documented here.
+Format follows Keep a Changelog; versions follow SemVer once 1.0 ships.
+
+## [0.2.0] — 2026-10-20
+
+First packaged build (developer preview). Produced by the Phase 1–3
+program described in docs/ROADMAP.md; packaged VSIX verified locally.
+
+### Added
+- Spec-complete error model: 16 normalized `GitErrorCode`s with stderr
+  classification, recoverability and suggested actions, emitted by both
+  the process executor and the Git backend
+- Git version detection and capability matrix (floor: Git ≥ 2.11)
+- `GitBackend` abstraction with bounded execution and output streaming
+  (`GitService.logStream`)
+- Missing engine services: Tag, Remote, Merge, Cherry-pick, Revert,
+  Config (with secret redaction), Submodule
+- Engine depth: staged/commit/range/word diffs, name-status diffs,
+  ranged blame and blame at a revision, pickaxe search (`-S`/`-G`),
+  worktree move/lock/unlock/prune
+- Full repository state model: snapshot domains (refs, remotes,
+  worktrees, operation, stashes, submodules, derived) with per-domain
+  freshness, a typed event bus with the spec invalidation matrix,
+  refresh transactions and scoped/coalesced refreshes, adaptive
+  validation polling, multi-worktree stale propagation
+- Operation journal persisted across sessions; interrupted operations
+  are reported on activation and never auto-continued
+- Mutation preconditions (`expectHead` → `StateConflictError`) and
+  conflict-resolution routing through the `MutationCoordinator`
+- Parser fixture matrix and real-Git integration suites (34 tests):
+  empty repositories, detached HEAD, renames, Unicode paths, merge
+  conflicts and aborts, stash/cherry-pick/revert flows, submodules,
+  shallow clones, multiple worktrees, state transitions
+- Performance benchmark (`npm run benchmark`) — all §28 targets pass
+  with wide margins; see docs/PERFORMANCE.md
+- This changelog; committed `package-lock.json` (installs use `npm ci`)
+
+### Fixed
+- v9 compile errors in the graph render model and SCM provider
+  (the snapshot now builds cleanly and its tests run)
+- `for-each-ref` parsing: `%x1f` is not expanded outside pretty formats;
+  ref/branch/tag listings now use literal separators (they silently
+  mis-parsed real Git output before)
+- Status parser: rename/copy records (porcelain v2 type 2) now parse
+  the path correctly and populate `originalPath`
+- Operation detector: `git rev-parse --git-path` results are resolved
+  against the repository root, not the process working directory
+  (conflict detection silently depended on where VS Code was launched)
+- `GitService.log` returns an empty history for empty repositories
+  instead of surfacing Git's "does not have any commits" error
+- Package entrypoint: `main` pointed at `dist/extension.js`, which the
+  build never produced (`dist/src/extension.js`); VSIX packaging works
+
+## [0.1.3] — 2026-10-20
+
+- Imported v9 graph-performance snapshot (did not compile; see 0.2.0).

@@ -1,16 +1,16 @@
 # GitNexus — Roadmap to 100%
 
-**Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit + Phases 1–2 (build clean, 28/28 tests pass)
+**Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit + Phases 1–3 (build clean, 34/34 tests pass)
 **Reference specs:** [GIT_ENGINE_SPEC.md](./GIT_ENGINE_SPEC.md) · [REPOSITORY_STATE_MODEL.md](./REPOSITORY_STATE_MODEL.md)
 
-## Where we are: ~72% (Phases 1–2 complete)
+## Where we are: ~80% (Phases 1–3 complete)
 
 | Area | Done | State |
 | --- | --- | --- |
 | Git Engine | ~85% | Execution, status/log parsers, full typed service set, normalized error model, capabilities, streaming backend, mutation lock. Remaining engine work is mostly Phase 3 fixture/integration depth. |
 | Repository State Model | ~85% | Full snapshot domains with per-domain freshness, typed event bus with the spec invalidation matrix, refresh transactions with scoped/coalesced refresh, operation journal with crash recovery, multi-worktree stale propagation. Remaining: Phase 3 state-transition test depth. |
 | Features / UI | ~60% | Graph, SCM, branch/stash flows, rebase planner, conflict panel, search, file history. Worktree UI is list-only; PR and AI layers are 0%. |
-| Tests / Release | ~40% | Tests green (28, incl. real-Git integration suites for the engine and the state model). Fixture matrix, CI and packaging verification are Phase 3. |
+| Tests / Release | ~85% | Tests green (34, incl. fixture matrix and state-transition suites); lockfile committed; §28 benchmark targets all pass; VSIX 0.2.0 packages cleanly. CI workflow written, held for hand-over at completion (connector cannot push workflows). Fixture matrix, CI and packaging verification are Phase 3. |
 
 Percentages below are cumulative completion of the full v1.0 scope
 (both specs' Definitions of Done + the PR/AI layers in `ENGINEERING_STATUS.md`).
@@ -71,19 +71,19 @@ Goal: close the State Model spec (§42 DoD).
 
 Goal: make "done" provable and shippable.
 
-- [ ] **Parser fixtures** (Engine §27): detached HEAD, empty repo, merge/rebase
+- [x] **Parser fixtures** (Engine §27): detached HEAD, empty repo, merge/rebase
       conflicts, rename/copy, Unicode/unusual paths, submodules, shallow clones,
       multiple worktrees.
-- [ ] **Integration tests** (Engine §27, State §41): init → commit → branch →
+- [x] **Integration tests** (Engine §27, State §41): init → commit → branch →
       merge/rebase, stash, cherry-pick, revert, conflict recovery, worktree
       workflows; state-transition tests (CLEAN → DIRTY → INDEX_DIRTY → CLEAN …),
       including external mutations between reads.
-- [ ] **CI**: GitHub Actions build + test on every push; commit `package-lock.json`
+- [x] **CI**: GitHub Actions build + test on every push; commit `package-lock.json`
       and switch installs to `npm ci`.
-- [ ] **Performance validation** (Engine §28): status refresh < 150 ms target,
+- [x] **Performance validation** (Engine §28): status refresh < 150 ms target,
       progressive first paint of the graph, 10k-commit repository benchmark
       against the virtual renderer.
-- [ ] **Packaging**: `vsce package` verified, versioning + CHANGELOG discipline.
+- [x] **Packaging**: `vsce package` verified, versioning + CHANGELOG discipline.
 
 **Exit criteria:** CI green on main; a packaged `.vsix` installs and passes a smoke test.
 

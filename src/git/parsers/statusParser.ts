@@ -19,7 +19,8 @@ export function parsePorcelainV2Status(raw: string): RepositoryStatus {
   let behind = 0;
   const entries: WorkingTreeEntry[] = [];
 
-  for (const record of records) {
+  for (let index = 0; index < records.length; index++) {
+    const record = records[index];
     if (record.startsWith("# branch.head ")) {
       const value = record.slice("# branch.head ".length);
       branch = value === "(detached)" ? undefined : value;
@@ -66,6 +67,22 @@ export function parsePorcelainV2Status(raw: string): RepositoryStatus {
 
     const fields = record.split(" ");
     const xy = fields[1] ?? "..";
+    if (tag === "2") {
+      // Rename/copy record: one extra field (the similarity score, e.g.
+      // "R100") precedes the path, and the ORIGINAL path travels as the
+      // following NUL-separated record (porcelain v2 spec).
+      const path = fields.slice(9).join(" ");
+      const originalPath = records[index + 1];
+      if (originalPath !== undefined) index++;
+      entries.push({
+        path,
+        originalPath,
+        indexStatus: xy[0] ?? ".",
+        worktreeStatus: xy[1] ?? ".",
+        kind: kindFromStatus(xy[0] ?? ".", xy[1] ?? ".")
+      });
+      continue;
+    }
     const path = fields.slice(8).join(" ");
     entries.push({
       path,

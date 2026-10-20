@@ -38,10 +38,14 @@ export class RepositoryOperationDetector {
   private async pathExists(root: string, args: string[]): Promise<boolean> {
     try {
       const result = await this.executor.exec(args, { cwd: root, timeoutMs: this.timeoutMs });
-      const path = result.stdout.trim();
-      if (!path) return false;
-      const fs = await import("node:fs/promises");
-      await fs.access(path);
+      const gitPath = result.stdout.trim();
+      if (!gitPath) return false;
+      // `git rev-parse --git-path` returns a path relative to the
+      // repository root (e.g. ".git/MERGE_HEAD") — resolve it against the
+      // root, never against this process's working directory.
+      const { access } = await import("node:fs/promises");
+      const { isAbsolute, join } = await import("node:path");
+      await access(isAbsolute(gitPath) ? gitPath : join(root, gitPath));
       return true;
     } catch {
       return false;

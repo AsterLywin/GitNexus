@@ -159,3 +159,27 @@ coupling Git history retrieval to a specific rendering technology.
 - Operation journal persisted in globalState; on activation, operations
   left "running" by a previous session are reported as interrupted and
   never auto-continued (§31)
+
+## Phase 3 — Test & release gates (2026-10-20)
+
+- Fixture matrix (real Git, test/fixtures.integration.test.ts): empty
+  repository, detached HEAD, staged rename, Unicode/space paths, merge
+  conflict → abort state transitions (State Model §41), stash /
+  cherry-pick / revert service flows, multiple worktrees, submodule,
+  shallow clone
+- Two real bugs the fixtures exposed, both fixed: the porcelain-v2 status
+  parser mis-parsed rename records (score token leaked into the path,
+  originalPath never populated), and the operation detector resolved
+  `git rev-parse --git-path` relative paths against the process cwd
+  instead of the repository root. `GitService.log` now returns [] for
+  empty repositories
+- Performance (§28) via scripts/benchmark.mjs + docs/PERFORMANCE.md:
+  status 7.6 ms clean / 8.2 ms with 500 untracked files, 10k-commit
+  graph layout 9.6 ms, render window 1.6 ms — every target passes
+- Release discipline: package-lock.json committed (npm ci), CHANGELOG.md
+  started, version 0.2.0, .vscodeignore added, package entrypoint fixed
+  (main now dist/src/extension.js) and `vsce package` verified
+  (85 files, ~92 KB VSIX, held locally with the CI workflow)
+- CI workflow (matrix: Ubuntu/Windows × Node 20/22, npm ci, tests,
+  VSIX artifact) is written and held off-repo at Aster's request until
+  project completion — the connector cannot push workflow files

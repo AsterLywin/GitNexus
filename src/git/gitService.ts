@@ -130,8 +130,15 @@ export class GitService {
     const result = await this.executor.exec(
       buildLogArgs(limit, options),
       { cwd: root, timeoutMs: this.timeoutMs }
-    );
-    return parseLog(result.stdout);
+    ).catch((error: unknown) => {
+      // Empty repository (unborn HEAD): history is legitimately empty,
+      // not an error (GIT_ENGINE_SPEC §27 fixture class).
+      if (error instanceof GitError && /does not have any commits|bad default revision|ambiguous argument 'HEAD'/i.test(error.stderr ?? error.message)) {
+        return undefined;
+      }
+      throw error;
+    });
+    return result ? parseLog(result.stdout) : [];
   }
 
   /**

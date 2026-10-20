@@ -2,7 +2,7 @@
   "name": "gitnexus",
   "displayName": "GitNexus",
   "description": "Open-source, local-first Git intelligence for VS Code.",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "publisher": "gitnexus",
   "license": "Apache-2.0",
   "repository": {
@@ -35,7 +35,7 @@
     "onCommand:gitnexus.stashList",
     "onCommand:gitnexus.openConflicts"
   ],
-  "main": "./dist/extension.js",
+  "main": "./dist/src/extension.js",
   "contributes": {
     "commands": [
       {
@@ -172,7 +172,8 @@
     "build": "tsc -p tsconfig.json",
     "watch": "tsc -p tsconfig.json --watch",
     "test": "npm run build && node --test dist/test/*.test.js",
-    "package": "npm run build && npx @vscode/vsce package"
+    "package": "npm run build && npx @vscode/vsce package",
+    "benchmark": "npm run build && node scripts/benchmark.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
