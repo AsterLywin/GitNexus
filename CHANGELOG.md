@@ -3,6 +3,22 @@
 All notable changes to GitNexus are documented here.
 Format follows Keep a Changelog; versions follow SemVer once 1.0 ships.
 
+## [1.0.4] — 2026-10-21
+
+### Fixed
+- Scoped refreshes silently degraded to full refreshes when the caller
+  held a different spelling of the repository path than Git's canonical
+  root: on GitHub's Windows runners `os.tmpdir()` yields the 8.3 short
+  form (`C:\\Users\\RUNNER~1\\...`) while `git rev-parse
+  --show-toplevel` reports the long form, so the snapshot lookup missed
+  and every domain was re-stamped with the new generation (the state
+  integration freshness assertion failed: expected head generation 2,
+  got 3 — reproduced locally with a symlinked path alias).
+  `RepositoryManager.refreshScoped` now resolves a missed path through
+  Git discovery to the canonical identity and retries the lookup once
+  before falling back; the integration test also uses the canonical
+  root for its scoped call, like the rest of the test.
+
 ## [1.0.3] — 2026-10-21
 
 ### Fixed

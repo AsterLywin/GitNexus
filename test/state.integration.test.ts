@@ -77,7 +77,7 @@ test("state model: domains, generations, scoped freshness, bus events, mutation 
     // Scoped refresh (§37, §14): only status is re-observed; the head
     // domain keeps its original generation in the freshness map.
     await writeFile(join(dir, "a.txt"), "dirty\n");
-    const scoped = await manager.refreshScoped(dir, ["status"]);
+    const scoped = await manager.refreshScoped(root, ["status"]);
     assert.equal(scoped.status.entries.length, 1);
     assert.equal(scoped.domains!.freshness.status.generation, scoped.generation);
     assert.equal(scoped.domains!.freshness.head.generation, 2);

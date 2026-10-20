@@ -160,7 +160,22 @@ export class RepositoryManager {
    * their values and their original freshness generations.
    */
   async refreshScoped(rootUri: string, scopes: RefreshScope[]): Promise<RepositorySnapshot> {
-    const previous = this.store.get(rootUri);
+    let previous = this.store.get(rootUri);
+    if (!previous && this.services) {
+      // The caller may hold a different SPELLING of the same repository
+      // path — Windows 8.3 short names (%TEMP% gives RUNNER~1 while Git
+      // reports the long form), symlinks (macOS /tmp -> /private/tmp),
+      // separator forms. String keying misses those; resolve through Git
+      // to the canonical identity and retry once before giving up on
+      // scoped semantics and paying for a full refresh.
+      try {
+        const identity = await this.git.discoverRepository(rootUri);
+        previous = this.store.get(identity.rootUri);
+        if (previous) rootUri = previous.identity.rootUri;
+      } catch {
+        // Not a repository — the full refresh below reports it properly.
+      }
+    }
     if (!previous || scopes.includes("all") || !this.services) {
       return this.refresh(rootUri);
     }
