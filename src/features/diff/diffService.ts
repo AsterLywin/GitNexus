@@ -31,6 +31,58 @@ export class DiffService {
       rawPatch: result.stdout
     };
   }
+
+  /** Working-tree (unstaged) diff, optionally for a single file. */
+  async workingTree(root: string, file?: string): Promise<DiffResult> {
+    return this.diff(root, file ? ["--", file] : []);
+  }
+
+  /** Staged (index vs HEAD) diff, optionally for a single file. */
+  async staged(root: string, file?: string): Promise<DiffResult> {
+    return this.diff(root, ["--staged", ...(file ? ["--", file] : [])]);
+  }
+
+  /** Diff introduced by a single commit (uses `git show` so root commits work). */
+  async commit(root: string, commitId: string): Promise<DiffResult> {
+    const result = await this.executor.exec(
+      ["show", "--no-ext-diff", "--unified=3", "--format=", commitId],
+      { cwd: root, timeoutMs: this.timeoutMs }
+    );
+    return { files: parseFiles(result.stdout), rawPatch: result.stdout };
+  }
+
+  /** Diff between two revisions; three-dot (merge-base) by default. */
+  async range(root: string, from: string, to: string, threeDot = true): Promise<DiffResult> {
+    return this.diff(root, [`${from}${threeDot ? "..." : ".."}${to}`]);
+  }
+
+  /** Word-level diff for a file (prose-friendly). */
+  async wordDiff(root: string, file: string, staged = false): Promise<DiffResult> {
+    return this.diff(root, [
+      "--word-diff=plain",
+      ...(staged ? ["--staged"] : []),
+      "--", file
+    ]);
+  }
+
+  /** Name/status-only summary (binary files are reported, not expanded). */
+  async nameStatus(root: string, args: readonly string[] = []): Promise<Array<{ status: string; path: string; oldPath?: string }>> {
+    const result = await this.executor.exec(
+      ["diff", "--name-status", "-z", ...args],
+      { cwd: root, timeoutMs: this.timeoutMs }
+    );
+    const fields = result.stdout.split("\0").filter(Boolean);
+    const entries: Array<{ status: string; path: string; oldPath?: string }> = [];
+    for (let i = 0; i < fields.length; i++) {
+      const status = fields[i];
+      if (/^[RC]/.test(status)) {
+        entries.push({ status, oldPath: fields[++i], path: fields[++i] });
+      } else {
+        entries.push({ status, path: fields[++i] });
+      }
+    }
+    return entries;
+  }
 }
 
 function parseFiles(patch: string): DiffFile[] {

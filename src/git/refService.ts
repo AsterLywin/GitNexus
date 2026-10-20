@@ -9,15 +9,15 @@ export class RefService {
 
   async list(root: string): Promise<RefSnapshot> {
     const branches = await this.executor.exec(
-      ["for-each-ref", "--format=%(refname)%x1f%(refname:short)%x1f%(objectname)%x1f%(upstream:short)%x1f%(HEAD)", "refs/heads"],
+      ["for-each-ref", "--format=%(refname)\x1f%(refname:short)\x1f%(objectname)\x1f%(upstream:short)\x1f%(HEAD)", "refs/heads"],
       { cwd: root, timeoutMs: this.timeoutMs }
     );
     const remotes = await this.executor.exec(
-      ["for-each-ref", "--format=%(refname)%x1f%(refname:short)%x1f%(objectname)", "refs/remotes"],
+      ["for-each-ref", "--format=%(refname)\x1f%(refname:short)\x1f%(objectname)", "refs/remotes"],
       { cwd: root, timeoutMs: this.timeoutMs }
     );
     const tags = await this.executor.exec(
-      ["for-each-ref", "--format=%(refname)%x1f%(refname:short)%x1f%(objectname)", "refs/tags"],
+      ["for-each-ref", "--format=%(refname)\x1f%(refname:short)\x1f%(objectname)", "refs/tags"],
       { cwd: root, timeoutMs: this.timeoutMs }
     );
 

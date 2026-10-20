@@ -111,3 +111,23 @@ plan can later be driven by a CLI backend, libgit2 backend, or remote execution 
 
 The existing graph UI can adopt `GraphRenderModel` incrementally; this avoids
 coupling Git history retrieval to a specific rendering technology.
+
+## Phase 1 — Git Engine correctness core (2026-10-20)
+
+- Normalized error model: all 16 spec `GitErrorCode`s with stderr classification,
+  recoverable flags and suggested recovery actions (`src/git/errors.ts`);
+  the process executor and the streaming backend both emit it
+- Git version parsing + capability detection with a supported floor (Git >= 2.11)
+- `GitBackend` contract with buffered `execute()` and chunked `stream()`;
+  `GitService.logStream()` yields commits incrementally via `streamCommits()`
+- New typed services: Tag, Remote (fetch/pull/push/prune), Merge, CherryPick,
+  Revert, Config (scoped, with secret redaction), Submodule
+- Engine depth: log options (ranges, first-parent, --follow, author/grep/date,
+  path), diff modes (staged/commit/range/word/name-status), blame ranges and
+  revisions, pickaxe search (-S/-G), worktree move/lock/unlock/prune
+- Metadata TTL cache and a secret-safe in-memory operation log (command family
+  + duration + outcome only), wired through executor, backend and extension
+- Bug found by the new integration test: `for-each-ref` does not expand
+  `%x1f` (that is pretty-format syntax), so RefService, BranchService and
+  TagService silently mis-parsed real Git output; formats now carry a literal
+  separator and are covered by a real-Git integration test (23 tests total)

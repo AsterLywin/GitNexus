@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
-import { GitError } from "./errors";
+import { GitError, gitErrorFromFailure } from "./errors";
+import { OperationLog, commandFamily } from "./operationLog";
 
 export interface GitExecOptions {
   cwd: string;
@@ -19,13 +20,28 @@ export interface GitProcessExecutor {
 }
 
 export class NodeGitProcessExecutor implements GitProcessExecutor {
-  constructor(private readonly gitPath = "git") {}
+  constructor(
+    private readonly gitPath = "git",
+    private readonly operationLog?: OperationLog
+  ) {}
 
   exec(args: readonly string[], options: GitExecOptions): Promise<GitExecResult> {
+    const startedAt = Date.now();
+    const family = commandFamily(args);
+    const log = (ok: boolean, errorCode?: GitError["code"]) => {
+      this.operationLog?.record({
+        repo: options.cwd,
+        family,
+        durationMs: Date.now() - startedAt,
+        ok,
+        errorCode
+      });
+    };
+
     return new Promise((resolve, reject) => {
       const child = spawn(this.gitPath, [...args], {
         cwd: options.cwd,
-        env: options.env,
+        env: options.env ? { ...process.env, ...options.env } : undefined,
         stdio: ["ignore", "pipe", "pipe"]
       });
 
@@ -41,15 +57,21 @@ export class NodeGitProcessExecutor implements GitProcessExecutor {
 
       const timeout = setTimeout(() => {
         child.kill();
-        finish(() => reject(new GitError(`Git command timed out: git ${args.join(" ")}`, {
-          code: "GIT_TIMEOUT"
+        log(false, "TIMEOUT");
+        finish(() => reject(new GitError(`Git command timed out: git ${family}`, {
+          code: "TIMEOUT",
+          operation: family,
+          repo: options.cwd
         })));
       }, options.timeoutMs ?? 30000);
 
       const abort = () => {
         child.kill();
-        finish(() => reject(new GitError(`Git command cancelled: git ${args.join(" ")}`, {
-          code: "GIT_CANCELLED"
+        log(false, "CANCELLED");
+        finish(() => reject(new GitError(`Git command cancelled: git ${family}`, {
+          code: "CANCELLED",
+          operation: family,
+          repo: options.cwd
         })));
       };
 
@@ -65,20 +87,30 @@ export class NodeGitProcessExecutor implements GitProcessExecutor {
 
       child.on("error", error => {
         clearTimeout(timeout);
-        finish(() => reject(new GitError(error.message, { code: "GIT_PROCESS_ERROR" })));
+        const notFound = (error as NodeJS.ErrnoException).code === "ENOENT";
+        const code = notFound ? "GIT_NOT_FOUND" as const : "UNKNOWN" as const;
+        log(false, code);
+        finish(() => reject(new GitError(
+          notFound ? `Git executable not found: ${this.gitPath}` : error.message,
+          { code, operation: family, repo: options.cwd }
+        )));
       });
 
       child.on("close", exitCode => {
         clearTimeout(timeout);
         finish(() => {
           if (exitCode !== 0) {
-            reject(new GitError(`Git exited with code ${exitCode}`, {
-              code: "GIT_EXIT",
+            const error = gitErrorFromFailure({
+              stderr,
               exitCode: exitCode ?? undefined,
-              stderr
-            }));
+              operation: family,
+              repo: options.cwd
+            });
+            log(false, error.code);
+            reject(error);
             return;
           }
+          log(true);
           resolve({ stdout, stderr, exitCode: exitCode ?? 0 });
         });
       });

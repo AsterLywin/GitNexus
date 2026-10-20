@@ -21,7 +21,27 @@ export class BlameService {
     );
     return parseBlame(result.stdout);
   }
+
+  /** Blame a 1-based inclusive line range (GIT_ENGINE_SPEC §14). */
+  async blameRange(root: string, file: string, startLine: number, endLine: number): Promise<BlameLine[]> {
+    const result = await this.executor.exec(
+      ["blame", "--line-porcelain", "-L", `${startLine},${endLine}`, "--", file],
+      { cwd: root, timeoutMs: this.timeoutMs }
+    );
+    return parseBlame(result.stdout);
+  }
+
+  /** Blame a file as of a specific revision. */
+  async blameAt(root: string, file: string, revision: string): Promise<BlameLine[]> {
+    const result = await this.executor.exec(
+      ["blame", "--line-porcelain", revision, "--", file],
+      { cwd: root, timeoutMs: this.timeoutMs }
+    );
+    return parseBlame(result.stdout);
+  }
 }
+
+export { parseBlame };
 
 function parseBlame(raw: string): BlameLine[] {
   const lines = raw.split(/\r?\n/);

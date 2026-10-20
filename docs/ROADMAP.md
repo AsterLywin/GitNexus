@@ -1,16 +1,16 @@
 # GitNexus — Roadmap to 100%
 
-**Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit (build clean, 11/11 unit tests pass)
+**Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit + Phase 1 (build clean, 23/23 tests pass)
 **Reference specs:** [GIT_ENGINE_SPEC.md](./GIT_ENGINE_SPEC.md) · [REPOSITORY_STATE_MODEL.md](./REPOSITORY_STATE_MODEL.md)
 
-## Where we are: ~45%
+## Where we are: ~58% (Phase 1 complete)
 
 | Area | Done | State |
 | --- | --- | --- |
-| Git Engine | ~50% | Execution, status/log parsers, branch/stash/worktree basics, mutation lock work. Error model, capabilities, streaming and several typed services are missing. |
+| Git Engine | ~85% | Execution, status/log parsers, full typed service set, normalized error model, capabilities, streaming backend, mutation lock. Remaining engine work is mostly Phase 3 fixture/integration depth. |
 | Repository State Model | ~35% | Snapshot store exists but holds only identity/head/status/commits. Most state domains, the event bus and invalidation are not implemented. |
 | Features / UI | ~60% | Graph, SCM, branch/stash flows, rebase planner, conflict panel, search, file history. Worktree UI is list-only; PR and AI layers are 0%. |
-| Tests / Release | ~25% | Unit tests green (11). No integration/fixture tests, no CI, no packaging verification. |
+| Tests / Release | ~35% | Tests green (23, incl. a real-Git integration suite). Fixture matrix, CI and packaging verification are Phase 3. |
 
 Percentages below are cumulative completion of the full v1.0 scope
 (both specs' Definitions of Done + the PR/AI layers in `ENGINEERING_STATUS.md`).
@@ -21,23 +21,23 @@ Percentages below are cumulative completion of the full v1.0 scope
 
 Goal: close the Git Engine spec (§29 DoD), except its test items (Phase 3).
 
-- [ ] **Normalized error model** (Engine §6): typed `GitErrorCode` union with all 17 codes,
+- [x] **Normalized error model** (Engine §6): typed `GitErrorCode` union with all 17 codes,
       stderr/exit-code mapping, `recoverable` flag and `suggestedActions`; retire the
       generic `GIT_EXIT` / `GIT_PROCESS_ERROR` codes.
-- [ ] **Version & capabilities** (Engine §8): `git --version` parsing, `GitCapabilities`
+- [x] **Version & capabilities** (Engine §8): `git --version` parsing, `GitCapabilities`
       detection, graceful degradation per feature.
-- [ ] **Backend contract + streaming** (Engine §3, §21): formal `GitBackend` interface with
+- [x] **Backend contract + streaming** (Engine §3, §21): formal `GitBackend` interface with
       `stream()`; `AsyncIterable` history/diff/blame so large results are consumable
       incrementally and cancellable mid-stream.
-- [ ] **Missing typed services** (Engine §9, §18–§20): `GitTagService`,
+- [x] **Missing typed services** (Engine §9, §18–§20): `GitTagService`,
       `GitRemoteService` (fetch / push / pull / prune / upstream),
       `GitMergeService`, `GitCherryPickService`, `GitRevertService`,
       `GitConfigService` (scoped reads + secret redaction), `GitSubmoduleService`.
-- [ ] **Engine depth on existing services** (Engine §11–§16): history ranges,
+- [x] **Engine depth on existing services** (Engine §11–§16): history ranges,
       first-parent, `--follow`, author/grep filters; diff staged/range/rename/binary/
       word-diff modes; blame `-L` line ranges; pickaxe search (`-S` / `-G`);
       worktree move/lock/unlock/prune.
-- [ ] **Caching + observability** (Engine §23, §26): immutable commit/ref caches,
+- [x] **Caching + observability** (Engine §23, §26): immutable commit/ref caches,
       operation IDs and duration logging with secret-safe output.
 
 **Exit criteria:** every Engine §29 item except fixture/integration coverage is demonstrably true.

@@ -35,7 +35,31 @@ export class WorktreeService {
       { cwd: root, timeoutMs: this.timeoutMs }
     );
   }
+
+  async move(root: string, from: string, to: string): Promise<void> {
+    await this.executor.exec(["worktree", "move", from, to], { cwd: root, timeoutMs: this.timeoutMs });
+  }
+
+  async lock(root: string, path: string, reason?: string): Promise<void> {
+    await this.executor.exec(
+      ["worktree", "lock", ...(reason ? ["--reason", reason] : []), path],
+      { cwd: root, timeoutMs: this.timeoutMs }
+    );
+  }
+
+  async unlock(root: string, path: string): Promise<void> {
+    await this.executor.exec(["worktree", "unlock", path], { cwd: root, timeoutMs: this.timeoutMs });
+  }
+
+  async prune(root: string, dryRun = false): Promise<void> {
+    await this.executor.exec(
+      ["worktree", "prune", ...(dryRun ? ["--dry-run"] : [])],
+      { cwd: root, timeoutMs: this.timeoutMs }
+    );
+  }
 }
+
+export { parseWorktrees };
 
 function parseWorktrees(raw: string): Worktree[] {
   const blocks = raw.split(/\n\n+/).filter(Boolean);

@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import * as path from "node:path";
 import { NodeGitProcessExecutor } from "./git/processExecutor";
+import { NodeGitBackend } from "./git/backend";
+import { InMemoryOperationLog } from "./git/operationLog";
 import { GitService } from "./git/gitService";
 import { RepositoryStateStore } from "./state/repositoryStateStore";
 import { RepositoryManager } from "./app/repositoryManager";
@@ -34,8 +36,10 @@ export function activate(context: vscode.ExtensionContext): void {
   const gitPath = config.get<string>("gitPath", "git");
   const timeoutMs = config.get<number>("gitTimeoutMs", 30000);
 
-  const executor = new NodeGitProcessExecutor(gitPath);
-  const git = new GitService(executor, timeoutMs);
+  const operationLog = new InMemoryOperationLog();
+  const executor = new NodeGitProcessExecutor(gitPath, operationLog);
+  const backend = new NodeGitBackend(gitPath, operationLog);
+  const git = new GitService(executor, timeoutMs, backend);
   const store = new RepositoryStateStore();
   const repositories = new RepositoryManager(git, store);
   const graph = new GraphService(git);
