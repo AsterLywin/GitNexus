@@ -22,6 +22,8 @@ import { RebaseService } from "./features/rebase/rebaseService";
 import { WorktreeService } from "./features/worktree/worktreeService";
 import { RepositoryOperationDetector } from "./git/repositoryOperationDetector";
 import { MutationCoordinator } from "./app/mutationCoordinator";
+import { RepositoryEventBus } from "./state/eventBus";
+import { OperationJournal, OperationJournalEntry } from "./state/operationJournal";
 import { GitNexusScmProvider } from "./features/scm/scmProvider";
 import { BranchService } from "./features/branch/branchService";
 import { RebasePlanner } from "./features/rebase/rebasePlanner";
@@ -41,7 +43,20 @@ export function activate(context: vscode.ExtensionContext): void {
   const backend = new NodeGitBackend(gitPath, operationLog);
   const git = new GitService(executor, timeoutMs, backend);
   const store = new RepositoryStateStore();
-  const repositories = new RepositoryManager(git, store);
+  const bus = new RepositoryEventBus();
+  let journal: OperationJournal;
+  journal = new OperationJournal(
+    () => { void context.globalState.update("gitnexus.operationJournal", journal.serialize()); },
+    context.globalState.get<OperationJournalEntry[]>("gitnexus.operationJournal", [])
+  );
+  const interruptedOps = journal.interrupted();
+  if (interruptedOps.length) {
+    // Crash recovery (State Model §31): report, never auto-continue.
+    void vscode.window.showWarningMessage(
+      `GitNexus: ${interruptedOps.length} operation(s) were interrupted by a restart and were not continued automatically: ${interruptedOps.map(e => e.type).join(", ")}. Check the repository state before retrying.`
+    );
+  }
+  const repositories = new RepositoryManager(git, store, { executor, bus });
   const graph = new GraphService(git);
   const commitDetails = new CommitDetailsService(executor, timeoutMs);
   const blame = new BlameService(executor, timeoutMs);
@@ -51,14 +66,14 @@ export function activate(context: vscode.ExtensionContext): void {
   const search = new CommitSearchService(executor, timeoutMs);
   const worktrees = new WorktreeService(executor, timeoutMs);
   const detector = new RepositoryOperationDetector(executor, 10000);
-  const mutation = new MutationCoordinator(executor, detector);
+  const mutation = new MutationCoordinator(executor, detector, journal);
   const rebase = new RebaseService(mutation, detector);
   const scmProviders: GitNexusScmProvider[] = [];
   const branches = new BranchService(executor, timeoutMs);
-  const rebasePlanner = new RebasePlanner(executor, 120000);
+  const rebasePlanner = new RebasePlanner(executor, 120000, mutation);
   const scmDiff = new ScmDiffService(executor, timeoutMs);
   const stash = new StashService(executor, timeoutMs);
-  const conflicts = new ConflictService(executor);
+  const conflicts = new ConflictService(executor, mutation);
   const commands = new CommandRegistry();
 
   commands.register("gitnexus.openGraph", async () => {
@@ -374,11 +389,12 @@ for (const folder of vscode.workspace.workspaceFolders ?? []) {
   const scm = new GitNexusScmProvider(folder.uri, store, executor);
   scmProviders.push(scm);
   context.subscriptions.push(scm);
-  context.subscriptions.push(new ScmWatcher(folder.uri, repositories));
+  context.subscriptions.push(new ScmWatcher(folder.uri, repositories, bus));
   repositories.refresh(folder.uri.fsPath).catch(() => undefined);
 }
 
 context.subscriptions.push({ dispose: () => commands.dispose() });
+context.subscriptions.push({ dispose: () => repositories.dispose() });
 }
 
 async function resolveWorkspacePath(): Promise<string | undefined> {

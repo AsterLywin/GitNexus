@@ -60,6 +60,12 @@ export interface RepositorySnapshot {
   commits: CommitSummary[];
   generation: number;
   updatedAt: number;
+  /**
+   * Full state-model domains (REPOSITORY_STATE_MODEL §4). Optional for
+   * backward compatibility with lightweight snapshots; RepositoryManager
+   * always populates them when it has an executor.
+   */
+  domains?: import("./state").RepositoryDomains;
 }
 
 export interface RepositoryEvent {

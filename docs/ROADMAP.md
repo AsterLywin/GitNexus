@@ -1,16 +1,16 @@
 # GitNexus — Roadmap to 100%
 
-**Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit + Phase 1 (build clean, 23/23 tests pass)
+**Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit + Phases 1–2 (build clean, 28/28 tests pass)
 **Reference specs:** [GIT_ENGINE_SPEC.md](./GIT_ENGINE_SPEC.md) · [REPOSITORY_STATE_MODEL.md](./REPOSITORY_STATE_MODEL.md)
 
-## Where we are: ~58% (Phase 1 complete)
+## Where we are: ~72% (Phases 1–2 complete)
 
 | Area | Done | State |
 | --- | --- | --- |
 | Git Engine | ~85% | Execution, status/log parsers, full typed service set, normalized error model, capabilities, streaming backend, mutation lock. Remaining engine work is mostly Phase 3 fixture/integration depth. |
-| Repository State Model | ~35% | Snapshot store exists but holds only identity/head/status/commits. Most state domains, the event bus and invalidation are not implemented. |
+| Repository State Model | ~85% | Full snapshot domains with per-domain freshness, typed event bus with the spec invalidation matrix, refresh transactions with scoped/coalesced refresh, operation journal with crash recovery, multi-worktree stale propagation. Remaining: Phase 3 state-transition test depth. |
 | Features / UI | ~60% | Graph, SCM, branch/stash flows, rebase planner, conflict panel, search, file history. Worktree UI is list-only; PR and AI layers are 0%. |
-| Tests / Release | ~35% | Tests green (23, incl. a real-Git integration suite). Fixture matrix, CI and packaging verification are Phase 3. |
+| Tests / Release | ~40% | Tests green (28, incl. real-Git integration suites for the engine and the state model). Fixture matrix, CI and packaging verification are Phase 3. |
 
 Percentages below are cumulative completion of the full v1.0 scope
 (both specs' Definitions of Done + the PR/AI layers in `ENGINEERING_STATUS.md`).
@@ -46,23 +46,23 @@ Goal: close the Git Engine spec (§29 DoD), except its test items (Phase 3).
 
 Goal: close the State Model spec (§42 DoD).
 
-- [ ] **Full state domains** (State §4–§11): refs, remotes, worktrees, operation,
+- [x] **Full state domains** (State §4–§11): refs, remotes, worktrees, operation,
       stashes, submodules and derived state as first-class snapshot domains,
       each with its own freshness metadata (State §13).
-- [ ] **Typed event bus + invalidation matrix** (State §15–§16): the 11
+- [x] **Typed event bus + invalidation matrix** (State §15–§16): the 11
       `RepositoryEvent` types; per-event invalidation exactly as the matrix specifies.
-- [ ] **Targeted watching + polling** (State §17–§19): watch the `.git` paths the spec
+- [x] **Targeted watching + polling** (State §17–§19): watch the `.git` paths the spec
       lists (HEAD, index, refs, logs, operation files, worktrees) instead of `**/*`;
       adaptive validation polling for network filesystems.
-- [ ] **Refresh transactions & generations** (State §14, §20–§21): coherent snapshot
+- [x] **Refresh transactions & generations** (State §14, §20–§21): coherent snapshot
       commits, derived caches keyed by `basedOnGeneration`.
-- [ ] **Mutation discipline** (State §22–§25, Engine §24): *all* mutations route through
+- [x] **Mutation discipline** (State §22–§25, Engine §24): *all* mutations route through
       `MutationCoordinator` (remove direct feature-level mutations); destructive
       operations validate preconditions (expected HEAD / ref target);
       optimistic UI reconciles against authoritative refresh.
-- [ ] **Operation journal + crash recovery** (State §31–§32): journal entries per
+- [x] **Operation journal + crash recovery** (State §31–§32): journal entries per
       mutation; on restart, rediscover + detect active operations, never auto-continue.
-- [ ] **Multi-worktree semantics** (State §26): shared (refs/objects) vs per-worktree
+- [x] **Multi-worktree semantics** (State §26): shared (refs/objects) vs per-worktree
       (HEAD/index/operation) state modelled separately in the store.
 
 **Exit criteria:** every State §42 item is demonstrably true; UI consumes snapshots only.

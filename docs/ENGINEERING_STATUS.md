@@ -131,3 +131,31 @@ coupling Git history retrieval to a specific rendering technology.
   `%x1f` (that is pretty-format syntax), so RefService, BranchService and
   TagService silently mis-parsed real Git output; formats now carry a literal
   separator and are covered by a real-Git integration test (23 tests total)
+
+## Phase 2 — Repository State Model completion (2026-10-20)
+
+- Full state domains on the snapshot (refs, remotes, worktrees, operation,
+  stashes, submodules, derived) each with per-domain freshness
+  (observedAt / generation / source / stale) — `src/domain/state.ts`
+- Typed event bus (`RepositoryEventBus`) carrying the spec's 11
+  `RepositoryStateEvent`s; the §16 invalidation matrix is exported as data
+  and events map to minimal refresh scopes via `scopesForEvent`
+- RepositoryManager refresh transactions: read → build one coherent
+  snapshot → commit → publish diff-derived events; scoped refresh re-reads
+  only requested domains and preserves other domains' freshness
+  generations; event bursts are coalesced (debounce) before refreshing
+- Adaptive validation polling per opened repository (HEAD check), and
+  multi-worktree propagation: sibling worktrees sharing a common Git dir
+  get their refs marked stale and refreshed
+- Watcher rework: `.git` paths are classified (HEAD/index/refs/logs/
+  operation files/worktrees) into typed events by `classifyGitPath`;
+  worktree files map to WORKTREE_CHANGED; the bus drives refresh
+- Mutation discipline: MutationCoordinator gains env support, an
+  `expectHead` precondition (StateConflictError on unexpected movement),
+  an `allowDuringConflict` path for resolution steps, and journal wiring;
+  its state record now logs only the command family (secret safety).
+  ConflictService checkout/stage and RebasePlanner execution now route
+  through the coordinator; extension command mutations already did
+- Operation journal persisted in globalState; on activation, operations
+  left "running" by a previous session are reported as interrupted and
+  never auto-continued (§31)

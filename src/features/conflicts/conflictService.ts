@@ -1,3 +1,4 @@
+import { MutationCoordinator } from "../../app/mutationCoordinator";
 import { GitProcessExecutor } from "../../git/processExecutor";
 
 export interface ConflictFile {
@@ -10,7 +11,10 @@ export interface ConflictFile {
 }
 
 export class ConflictService {
-  constructor(private readonly executor: GitProcessExecutor) {}
+  constructor(
+    private readonly executor: GitProcessExecutor,
+    private readonly mutation?: MutationCoordinator
+  ) {}
 
   async list(root: string): Promise<ConflictFile[]> {
     const result = await this.executor.exec(
@@ -48,13 +52,24 @@ export class ConflictService {
   }
 
   async checkoutSide(root: string, path: string, side: "ours" | "theirs"): Promise<void> {
-    await this.executor.exec(
-      ["checkout", `--${side}`, "--", path],
-      { cwd: root, timeoutMs: 30000 }
-    );
+    const args = ["checkout", `--${side}`, "--", path];
+    if (this.mutation) {
+      await this.mutation.run({
+        rootUri: root, operation: "checkout", args, allowDuringConflict: true
+      });
+      return;
+    }
+    await this.executor.exec(args, { cwd: root, timeoutMs: 30000 });
   }
 
   async stage(root: string, path: string): Promise<void> {
-    await this.executor.exec(["add", "--", path], { cwd: root, timeoutMs: 30000 });
+    const args = ["add", "--", path];
+    if (this.mutation) {
+      await this.mutation.run({
+        rootUri: root, operation: "stage", args, allowDuringConflict: true
+      });
+      return;
+    }
+    await this.executor.exec(args, { cwd: root, timeoutMs: 30000 });
   }
 }
