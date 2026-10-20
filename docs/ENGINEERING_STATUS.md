@@ -213,3 +213,24 @@ coupling Git history retrieval to a specific rendering technology.
   status and as a graph-panel notice for shallow clones
 - SCM: resource tooltips carry kind and rename origin; a file decoration
   provider adds letter badges + Git theme colors from the same snapshot
+
+## Phase 5 — Platform layers & v1.0.0 (2026-10-21)
+
+- Layer C (external state): provider-neutral PullRequestProvider with a
+  GitHub REST adapter — open PRs, per-branch lookup enriched with CI
+  check-run aggregation and review status; remote URLs parsed for all
+  common GitHub forms. PRs render as graph decorations on the head
+  branch's commit and through prList / prStatus / prCreate commands
+- Layer D (AI state): AiContext per State Model §29 — built from a
+  snapshot, pinned to its generation, rendered to Markdown, copied via
+  command; staleness is computed against the live generation and shown
+  in the status bar (none / fresh / stale with both generations); the
+  graph can add commits to the AI selection
+- Degradation (§35): RepositoryFeatures detection (shallow, partial
+  clone via promisor remotes, sparse checkout, sparse index) + Git LFS
+  awareness feed DerivedState.notices; Fetch More History offers
+  deepen-by-100 or full unshallow from the palette and the graph notice
+- Release: README rewritten, version 1.0.0, 41/41 tests, benchmark
+  re-verified, VSIX packaged. Marketplace publishing remains a
+  maintainer action (needs the publisher's PAT); the CI workflow file
+  is handed over with this release for the maintainer to commit

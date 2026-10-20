@@ -54,11 +54,36 @@ export function freshDomains(generation: number, observedAt = Date.now()): Fresh
 }
 
 /**
- * Repository limitations the UI must degrade around (GIT_ENGINE_SPEC
- * §29): the clone is shallow, HEAD is detached, or there is nothing to
- * fetch from / tag against.
+ * Repository feature/limitation facts (REPOSITORY_STATE_MODEL §35),
+ * detected from Git itself — never guessed.
  */
-export type DerivedNotice = "shallow-clone" | "detached-head" | "no-remotes" | "no-tags";
+export interface RepositoryFeatures {
+  shallow: boolean;
+  partialClone: boolean;
+  sparseCheckout: boolean;
+  sparseIndex: boolean;
+}
+
+export const FULL_FEATURES: RepositoryFeatures = {
+  shallow: false,
+  partialClone: false,
+  sparseCheckout: false,
+  sparseIndex: false
+};
+
+/**
+ * Repository limitations the UI must degrade around: limited history
+ * (shallow / partial / sparse), detached HEAD, Git LFS content, or
+ * nothing to fetch from / tag against.
+ */
+export type DerivedNotice =
+  | "shallow-clone"
+  | "partial-clone"
+  | "sparse-checkout"
+  | "detached-head"
+  | "git-lfs"
+  | "no-remotes"
+  | "no-tags";
 
 /** Layer B — derived state (§27). Always recomputable from Layer A. */
 export interface DerivedState {

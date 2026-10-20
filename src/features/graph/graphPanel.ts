@@ -10,11 +10,13 @@ import {
 } from "./graphRenderer";
 import { GraphDecoration } from "./refDecorations";
 
-export type CommitAction = "checkout" | "createBranch" | "createTag" | "copyHash";
+export type CommitAction = "checkout" | "createBranch" | "createTag" | "copyHash" | "aiContext";
 
 export interface GraphPanelHandlers {
   onSelect: (commitId: string) => void;
   onCommitAction: (action: CommitAction, commitId: string) => void;
+  /** Invoked by the [Fetch More History] button on limitation notices. */
+  onFetchMore?: () => void;
 }
 
 const WINDOW_ROWS = 240;
@@ -139,6 +141,9 @@ export class InteractiveGraphPanel {
           this.handlers.onCommitAction(message.action, this.selectedId);
         }
         break;
+      case "fetchMore":
+        this.handlers.onFetchMore?.();
+        break;
     }
   }
 
@@ -172,7 +177,7 @@ export class InteractiveGraphPanel {
     const nonce = Math.random().toString(36).slice(2);
     const totalHeight = this.model.nodes.length * GRAPH_ROW_HEIGHT;
     const notice = this.notice
-      ? `<div class="notice">${escapeHtml(this.notice)}</div>`
+      ? `<div class="notice">${escapeHtml(this.notice)} <button id="fetchMore">Fetch More History</button></div>`
       : "";
     return `<!doctype html>
 <html>
@@ -216,6 +221,7 @@ input { width:240px; }
   <button data-action="createBranch">Branch…</button>
   <button data-action="createTag">Tag…</button>
   <button data-action="copyHash">Copy hash</button>
+  <button data-action="aiContext">Add to AI context</button>
 </span>
 ${notice}
 </div>
@@ -239,6 +245,8 @@ layer.addEventListener("click", e => {
 document.getElementById("search").addEventListener("input", e => {
   vscode.postMessage({ type: "search", query: e.target.value });
 });
+const fetchMore = document.getElementById("fetchMore");
+if (fetchMore) fetchMore.onclick = () => vscode.postMessage({ type: "fetchMore" });
 document.getElementById("nextMatch").onclick = () => vscode.postMessage({ type: "nextMatch" });
 document.getElementById("prevMatch").onclick = () => vscode.postMessage({ type: "previousMatch" });
 actions.querySelectorAll("button").forEach(b => {

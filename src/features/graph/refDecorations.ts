@@ -5,7 +5,7 @@ export interface GraphDecoration {
   commitId: string;
   labels: Array<{
     text: string;
-    kind: "branch" | "remote" | "tag" | "head";
+    kind: "branch" | "remote" | "tag" | "head" | "pr";
   }>;
 }
 

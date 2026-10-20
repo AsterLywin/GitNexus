@@ -37,6 +37,12 @@ import { OperationService } from "./git/operationService";
 import { TagService } from "./git/tagService";
 import { WorktreePanel, WorktreeTreeItem } from "./features/worktree/worktreePanel";
 import { RebasePlannerPanel } from "./features/rebase/rebasePlannerPanel";
+import { RemoteService } from "./git/remoteService";
+import { GitHubPullRequestProvider } from "./features/pr/githubProvider";
+import { parseGitHubRemote } from "./features/pr/remoteInfo";
+import { buildPrDecorations } from "./features/pr/prDecorations";
+import { PullRequestProvider } from "./domain/pr";
+import { AiContextStore, buildAiContextPackage } from "./features/ai/aiContext";
 
 export function activate(context: vscode.ExtensionContext): void {
   const config = vscode.workspace.getConfiguration("gitnexus");
@@ -81,6 +87,44 @@ export function activate(context: vscode.ExtensionContext): void {
   const conflicts = new ConflictService(executor, mutation);
   const operations = new OperationService(executor, detector);
   const tags = new TagService(executor, timeoutMs);
+  const remotes = new RemoteService(executor, timeoutMs);
+  const aiStore = new AiContextStore();
+  const aiStatus = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 90);
+  aiStatus.command = "gitnexus.buildAiContext";
+  const updateAiStatus = () => {
+    const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const snapshot = folder ? store.get(folder) : undefined;
+    const pkg = aiStore.get();
+    if (!pkg) {
+      aiStatus.text = "$(sparkle) GitNexus AI context: none";
+    } else if (snapshot && aiStore.isStale(snapshot.generation)) {
+      aiStatus.text = `$(warning) GitNexus AI context stale (gen ${pkg.context.repositoryGeneration} → ${snapshot.generation})`;
+    } else {
+      aiStatus.text = `$(check) GitNexus AI context · gen ${pkg.context.repositoryGeneration}`;
+    }
+    aiStatus.show();
+  };
+  repositories.onEvent(() => updateAiStatus());
+  updateAiStatus();
+  context.subscriptions.push(aiStatus);
+
+  const makePrProvider = async (root: string, interactive: boolean): Promise<PullRequestProvider | undefined> => {
+    const remoteList = await remotes.list(root).catch(() => []);
+    const ordered = [...remoteList].sort((a, b) =>
+      (a.name === "origin" ? 0 : 1) - (b.name === "origin" ? 0 : 1));
+    for (const remote of ordered) {
+      const parsed = parseGitHubRemote(remote.fetchUrl ?? remote.pushUrl ?? "");
+      if (!parsed) continue;
+      return new GitHubPullRequestProvider({
+        remote: parsed,
+        getToken: async () => {
+          const session = await vscode.authentication.getSession("github", ["repo"], { createIfNone: interactive });
+          return session?.accessToken;
+        }
+      });
+    }
+    return undefined;
+  };
   const worktreePanel = new WorktreePanel(worktrees, resolveWorkspacePath);
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(STAGE_SCHEME, new StageDocumentProvider(conflicts)),
@@ -96,10 +140,29 @@ export function activate(context: vscode.ExtensionContext): void {
       const data = await graph.build(root, 500);
       const refSnapshot = await refs.list(root);
       const decorations = buildRefDecorations(data, refSnapshot);
+      // Layer C: open PRs as decorations, when a GitHub remote + an
+      // existing sign-in are available (silent — never prompt from here).
+      try {
+        const provider = await makePrProvider(root, false);
+        if (provider) {
+          const prs = await provider.listOpen();
+          const byCommit = new Map(decorations.map(d => [d.commitId, d]));
+          for (const decoration of buildPrDecorations(prs, refSnapshot)) {
+            const existing = byCommit.get(decoration.commitId);
+            if (existing) existing.labels.push(...decoration.labels);
+            else decorations.push(decoration);
+          }
+        }
+      } catch { /* PR layer is best-effort decoration */ }
       const snapshot = store.get(root);
-      const notice = snapshot?.domains?.derived.notices.includes("shallow-clone")
-        ? "Shallow clone — history is truncated at the clone depth; deepen with git fetch --unshallow."
-        : undefined;
+      const notices = snapshot?.domains?.derived.notices ?? [];
+      const notice = notices.includes("shallow-clone")
+        ? "History is limited because this repository is shallow."
+        : notices.includes("partial-clone")
+          ? "Partial clone — missing objects are fetched from the remote on demand."
+          : notices.includes("sparse-checkout")
+            ? "Sparse checkout — only part of the tree is present in the working copy."
+            : undefined;
       InteractiveGraphPanel.open(context, data, decorations, {
         onSelect: async commitId => {
           try {
@@ -113,8 +176,19 @@ export function activate(context: vscode.ExtensionContext): void {
             showError(error);
           }
         },
+        onFetchMore: async () => {
+          await vscode.commands.executeCommand("gitnexus.fetchMoreHistory");
+        },
         onCommitAction: async (action, commitId) => {
           try {
+            if (action === "aiContext") {
+              aiStore.addToSelection(commitId);
+              updateAiStatus();
+              vscode.window.showInformationMessage(
+                `GitNexus: ${commitId.slice(0, 10)} added to the AI context selection (${aiStore.selectedCommits().length} selected).`
+              );
+              return;
+            }
             if (action === "copyHash") {
               await vscode.env.clipboard.writeText(commitId);
               vscode.window.showInformationMessage(`GitNexus: copied ${commitId.slice(0, 10)}`);
@@ -570,6 +644,153 @@ export function activate(context: vscode.ExtensionContext): void {
       await vscode.commands.executeCommand(
         "vscode.openFolder", vscode.Uri.file(target), { forceNewWindow: true }
       );
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.fetchMoreHistory", async () => {
+    try {
+      const root = await resolveWorkspacePath(); if (!root) return;
+      const choice = await vscode.window.showQuickPick(
+        [
+          { label: "Deepen by 100 commits", args: ["fetch", "--deepen=100"] },
+          { label: "Fetch full history (unshallow)", args: ["fetch", "--unshallow"] }
+        ],
+        { placeHolder: "History is limited in this repository — fetch more" }
+      );
+      if (!choice) return;
+      await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: "GitNexus: fetching history…" },
+        async () => { await executor.exec(choice.args, { cwd: root, timeoutMs: 300000 }); }
+      );
+      await repositories.refresh(root);
+      vscode.window.showInformationMessage("GitNexus: history fetched.");
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.prList", async () => {
+    try {
+      const root = await resolveWorkspacePath(); if (!root) return;
+      const provider = await makePrProvider(root, true);
+      if (!provider) {
+        vscode.window.showInformationMessage("GitNexus: no GitHub remote found for this repository.");
+        return;
+      }
+      const prs = await provider.listOpen();
+      if (!prs.length) {
+        vscode.window.showInformationMessage(`GitNexus: no open pull requests in ${provider.repositorySlug}.`);
+        return;
+      }
+      const picked = await vscode.window.showQuickPick(
+        prs.map(pr => ({
+          label: `#${pr.number} ${pr.title}`,
+          description: `@${pr.author} · ${pr.headBranch} → ${pr.baseBranch}`,
+          url: pr.url
+        })),
+        { placeHolder: `Open pull requests — ${provider.repositorySlug}` }
+      );
+      if (picked) await vscode.env.openExternal(vscode.Uri.parse(picked.url));
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.prStatus", async () => {
+    try {
+      const root = await resolveWorkspacePath(); if (!root) return;
+      const provider = await makePrProvider(root, true);
+      if (!provider) {
+        vscode.window.showInformationMessage("GitNexus: no GitHub remote found for this repository.");
+        return;
+      }
+      const snapshot = await repositories.refresh(root);
+      const branch = snapshot.head.ref;
+      if (!branch) {
+        vscode.window.showInformationMessage("GitNexus: detached HEAD — no branch to look up a PR for.");
+        return;
+      }
+      const pr = await provider.forBranch(branch);
+      if (!pr) {
+        vscode.window.showInformationMessage(`GitNexus: no open PR for branch ${branch}.`);
+        return;
+      }
+      const action = await vscode.window.showInformationMessage(
+        `PR #${pr.number} ${pr.title} · CI ${pr.ciStatus ?? "unknown"} · review ${pr.reviewStatus ?? "none"}`,
+        "Open"
+      );
+      if (action === "Open") await vscode.env.openExternal(vscode.Uri.parse(pr.url));
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.prCreate", async () => {
+    try {
+      const root = await resolveWorkspacePath(); if (!root) return;
+      const provider = await makePrProvider(root, false);
+      if (!provider) {
+        vscode.window.showInformationMessage("GitNexus: no GitHub remote found for this repository.");
+        return;
+      }
+      const snapshot = await repositories.refresh(root);
+      const head = snapshot.head.ref;
+      if (!head) {
+        vscode.window.showInformationMessage("GitNexus: detached HEAD — checkout a branch to open a PR.");
+        return;
+      }
+      const branchNames = (snapshot.domains?.refs.branches ?? [])
+        .map(b => b.shortName)
+        .filter(name => name !== head);
+      const base = await vscode.window.showQuickPick(
+        branchNames, { placeHolder: `Base branch for ${head}` }
+      );
+      if (!base) return;
+      await vscode.env.openExternal(vscode.Uri.parse(provider.createUrl(base, head)));
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.buildAiContext", async () => {
+    try {
+      const root = await resolveWorkspacePath(); if (!root) return;
+      const snapshot = await repositories.refresh(root);
+      const selected = aiStore.selectedCommits();
+      const scopes = [
+        { label: "Working tree changes + recent commits", id: "changes" },
+        { label: "Recent history (25 commits)", id: "history" },
+        ...(selected.length
+          ? [{ label: `Graph selection (${selected.length} commit(s))`, id: "selection" }]
+          : [])
+      ];
+      const scope = await vscode.window.showQuickPick(scopes, { placeHolder: "AI context scope" });
+      if (!scope) return;
+      const pkg = buildAiContextPackage(snapshot,
+        scope.id === "selection" ? { commits: selected }
+        : scope.id === "history" ? { recentCommits: 25 }
+        : {});
+      aiStore.set(pkg);
+      updateAiStatus();
+      const document = await vscode.workspace.openTextDocument({ language: "markdown", content: pkg.markdown });
+      await vscode.window.showTextDocument(document, { preview: false });
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.copyAiContext", async () => {
+    try {
+      const root = await resolveWorkspacePath(); if (!root) return;
+      const pkg = aiStore.get();
+      if (!pkg) {
+        await vscode.commands.executeCommand("gitnexus.buildAiContext");
+        return;
+      }
+      const snapshot = store.get(root);
+      if (snapshot && aiStore.isStale(snapshot.generation)) {
+        const choice = await vscode.window.showWarningMessage(
+          `The AI context is pinned to generation ${pkg.context.repositoryGeneration}, but the repository is at generation ${snapshot.generation}.`,
+          "Rebuild", "Copy anyway"
+        );
+        if (choice === "Rebuild") {
+          await vscode.commands.executeCommand("gitnexus.buildAiContext");
+          return;
+        }
+        if (choice !== "Copy anyway") return;
+      }
+      await vscode.env.clipboard.writeText(pkg.markdown);
+      vscode.window.showInformationMessage("GitNexus: AI context copied to the clipboard.");
     } catch (error) { showError(error); }
   });
 

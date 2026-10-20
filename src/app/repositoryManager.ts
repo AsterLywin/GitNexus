@@ -17,6 +17,11 @@ import { GitService } from "../git/gitService";
 import { RefService } from "../git/refService";
 import { RemoteService } from "../git/remoteService";
 import { RepositoryOperationDetector, DetectedOperation } from "../git/repositoryOperationDetector";
+import {
+  NO_ENV,
+  RepositoryEnvironment,
+  detectRepositoryEnvironment
+} from "../git/repositoryFeatures";
 import { SubmoduleService } from "../git/submoduleService";
 import { RepositoryEventBus } from "../state/eventBus";
 import { RepositoryStateStore } from "../state/repositoryStateStore";
@@ -56,7 +61,7 @@ export class RepositoryManager {
   private readonly bus?: RepositoryEventBus;
   private readonly pollIntervalMs: number;
   private readonly debounceMs: number;
-  private readonly shallowByRoot = new Map<string, boolean>();
+  private readonly envByRoot = new Map<string, RepositoryEnvironment>();
   private readonly pendingScopes = new Map<string, Set<RefreshScope>>();
   private readonly pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly pollTimers = new Map<string, ReturnType<typeof setInterval>>();
@@ -122,7 +127,7 @@ export class RepositoryManager {
     if (snapshot.domains) {
       snapshot.domains.derived = computeDerived(
         snapshot, generation, snapshot.domains.derived.aheadBehind,
-        this.shallowByRoot.get(identity.rootUri) ?? false
+        this.envByRoot.get(identity.rootUri) ?? NO_ENV
       );
     }
 
@@ -232,7 +237,7 @@ export class RepositoryManager {
     if (domains) {
       domains.derived = computeDerived(
         snapshot, generation, domains.derived.aheadBehind,
-        this.shallowByRoot.get(rootUri) ?? false
+        this.envByRoot.get(rootUri) ?? NO_ENV
       );
       fresh("derived");
     }
@@ -292,7 +297,7 @@ export class RepositoryManager {
     const settle = async <T,>(job: Promise<T>, fb: T | undefined): Promise<T | undefined> =>
       job.catch(() => fb);
 
-    const [refs, remotes, worktrees, operation, stashes, submodules, branches, shallow] = await Promise.all([
+    const [refs, remotes, worktrees, operation, stashes, submodules, branches, env] = await Promise.all([
       settle(svc.refs.list(root), fallback?.refs),
       settle(svc.remotes.list(root), fallback?.remotes),
       settle(svc.worktrees.list(root), fallback?.worktrees),
@@ -300,13 +305,9 @@ export class RepositoryManager {
       settle(svc.stashes.list(root), fallback?.stashes),
       settle(svc.submodules.status(root), fallback?.submodules),
       settle(svc.branches.list(root), undefined),
-      settle(
-        svc.executor.exec(["rev-parse", "--is-shallow-repository"], { cwd: root, timeoutMs: 10000 })
-          .then(r => r.stdout.trim() === "true"),
-        fallback?.derived.notices.includes("shallow-clone") ?? false
-      )
+      settle(detectRepositoryEnvironment(svc.executor, root), this.envByRoot.get(root))
     ]);
-    if (shallow !== undefined) this.shallowByRoot.set(root, shallow);
+    if (env !== undefined) this.envByRoot.set(root, env);
 
     const domains: RepositoryDomains = {
       refs: refs ?? { refs: [], branches: [], remotes: [], tags: [] },
@@ -376,12 +377,15 @@ function computeDerived(
   snapshot: RepositorySnapshot,
   generation: number,
   aheadBehind: Record<string, { ahead: number; behind: number }>,
-  shallow = false
+  env: RepositoryEnvironment = NO_ENV
 ): DerivedState {
   const operation = snapshot.domains?.operation ?? IDLE_OPERATION;
   const notices: DerivedState["notices"] = [];
-  if (shallow) notices.push("shallow-clone");
+  if (env.features.shallow) notices.push("shallow-clone");
+  if (env.features.partialClone) notices.push("partial-clone");
+  if (env.features.sparseCheckout || env.features.sparseIndex) notices.push("sparse-checkout");
   if (snapshot.head.detached) notices.push("detached-head");
+  if (env.lfs) notices.push("git-lfs");
   if (snapshot.domains && snapshot.domains.remotes.length === 0) notices.push("no-remotes");
   if (snapshot.domains && snapshot.domains.refs.tags.length === 0) notices.push("no-tags");
   return {

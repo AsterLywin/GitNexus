@@ -2,7 +2,7 @@
   "name": "gitnexus",
   "displayName": "GitNexus",
   "description": "Open-source, local-first Git intelligence for VS Code.",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "publisher": "gitnexus",
   "license": "Apache-2.0",
   "repository": {
@@ -49,7 +49,13 @@
     "onCommand:gitnexus.openRebasePlanner",
     "onCommand:gitnexus.graphNextMatch",
     "onCommand:gitnexus.graphPreviousMatch",
-    "onView:gitnexus.worktrees"
+    "onView:gitnexus.worktrees",
+    "onCommand:gitnexus.fetchMoreHistory",
+    "onCommand:gitnexus.prList",
+    "onCommand:gitnexus.prStatus",
+    "onCommand:gitnexus.prCreate",
+    "onCommand:gitnexus.buildAiContext",
+    "onCommand:gitnexus.copyAiContext"
   ],
   "main": "./dist/src/extension.js",
   "contributes": {
@@ -213,6 +219,30 @@
       {
         "command": "gitnexus.worktreeOpen",
         "title": "GitNexus: Worktree: Open in New Window"
+      },
+      {
+        "command": "gitnexus.fetchMoreHistory",
+        "title": "GitNexus: Fetch More History"
+      },
+      {
+        "command": "gitnexus.prList",
+        "title": "GitNexus: Pull Requests: List Open"
+      },
+      {
+        "command": "gitnexus.prStatus",
+        "title": "GitNexus: Pull Requests: Status for Current Branch"
+      },
+      {
+        "command": "gitnexus.prCreate",
+        "title": "GitNexus: Pull Requests: Create"
+      },
+      {
+        "command": "gitnexus.buildAiContext",
+        "title": "GitNexus: AI Context: Build"
+      },
+      {
+        "command": "gitnexus.copyAiContext",
+        "title": "GitNexus: AI Context: Copy"
       }
     ],
     "configuration": {

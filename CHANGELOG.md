@@ -3,6 +3,32 @@
 All notable changes to GitNexus are documented here.
 Format follows Keep a Changelog; versions follow SemVer once 1.0 ships.
 
+## [1.0.0] — 2026-10-21
+
+First stable release. Both specifications are implemented end to end.
+
+### Added
+- Provider-neutral pull-request layer (Layer C) with a GitHub adapter:
+  open-PR listing, PR decorations on the graph, per-branch PR status
+  enriched with CI check-runs and review state, and a create-PR flow
+- AI context engine (State Model §29): context packages (commits, files,
+  diffs, prompt lines) pinned to the repository generation, a graph
+  "Add to AI context" selection, Markdown rendering, clipboard copy,
+  and status-bar staleness surfacing with rebuild offers
+- Full repository-feature detection (State Model §35): shallow,
+  partial clone, sparse checkout, sparse index, plus Git LFS awareness;
+  degradation notices extended accordingly and a Fetch More History
+  command (deepen or unshallow) wired into the graph notice
+- README rewritten for v1.0; roadmap complete (see docs/ROADMAP.md)
+
+### Notes
+- The CI workflow (.github/workflows/ci.yml) is maintained with the
+  release: build + test matrix on Ubuntu/Windows × Node 20/22 with a
+  VSIX artifact. It is added by the maintainer (the automation account
+  cannot push workflow files).
+- Marketplace publishing requires the publisher's own credentials:
+  `npx @vscode/vsce publish`.
+
 ## [0.3.0] — 2026-10-20
 
 ### Added

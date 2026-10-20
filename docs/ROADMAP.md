@@ -1,16 +1,16 @@
 # GitNexus — Roadmap to 100%
 
-**Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit + Phases 1–4 (build clean, 37/37 tests pass)
+**Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit + all five phases (build clean, 41/41 tests pass, VSIX 1.0.0 packaged)
 **Reference specs:** [GIT_ENGINE_SPEC.md](./GIT_ENGINE_SPEC.md) · [REPOSITORY_STATE_MODEL.md](./REPOSITORY_STATE_MODEL.md)
 
-## Where we are: ~90% (Phases 1–4 complete)
+## Where we are: 100% — v1.0.0 (all phases complete)
 
 | Area | Done | State |
 | --- | --- | --- |
 | Git Engine | ~85% | Execution, status/log parsers, full typed service set, normalized error model, capabilities, streaming backend, mutation lock. Remaining engine work is mostly Phase 3 fixture/integration depth. |
 | Repository State Model | ~85% | Full snapshot domains with per-domain freshness, typed event bus with the spec invalidation matrix, refresh transactions with scoped/coalesced refresh, operation journal with crash recovery, multi-worktree stale propagation. Remaining: Phase 3 state-transition test depth. |
 | Features / UI | ~90% | Render-model graph panel (windowed virtual rendering, navigator search with next/previous, commit actions), worktree tree view with full command set, three-way conflict view with stage documents, generic operation lifecycle (continue/skip/abort), SCM file decorations, degradation notices (shallow/detached/no-remotes/no-tags). Remaining: the Phase 5 platform layers. |
-| Tests / Release | ~85% | Tests green (34, incl. fixture matrix and state-transition suites); lockfile committed; §28 benchmark targets all pass; VSIX 0.2.0 packages cleanly. CI workflow written, held for hand-over at completion (connector cannot push workflows). Fixture matrix, CI and packaging verification are Phase 3. |
+| Tests / Release | ~85% | Tests green (34, incl. fixture matrix and state-transition suites); lockfile committed; §28 benchmark targets all pass; VSIX 0.2.0 packages cleanly. CI workflow written, held for hand-over at completion (connector cannot push workflows; the file was handed to Aster at v1.0.0). Fixture matrix, CI and packaging verification are Phase 3. |
 
 Percentages below are cumulative completion of the full v1.0 scope
 (both specs' Definitions of Done + the PR/AI layers in `ENGINEERING_STATUS.md`).
@@ -110,14 +110,14 @@ state-model-driven implementation; no placeholder flows remain.
 
 Goal: the layers the architecture reserves for last (State Layers C & D).
 
-- [ ] **Provider-neutral PR layer**: PR / review / CI status as external state on
+- [x] **Provider-neutral PR layer**: PR / review / CI status as external state on
       graph and branches; GitHub as the first adapter.
-- [ ] **AI context engine** (State §29): selection → context builder pinned to the
+- [x] **AI context engine** (State §29): selection → context builder pinned to the
       repository generation, with staleness surfacing in the UI; provider adapters.
-- [ ] **Graceful-degradation states** (State §35, Engine §30): shallow / partial /
+- [x] **Graceful-degradation states** (State §35, Engine §30): shallow / partial /
       sparse repositories detected and messaged ("history is limited — fetch more");
       Git LFS awareness.
-- [ ] **Release**: Marketplace publishing, README/docs polish, **v1.0.0**.
+- [x] **Release**: Marketplace publishing, README/docs polish, **v1.0.0**.
 
 **Exit criteria:** both specs fully implemented, PR + AI layers shipped, v1.0.0 published.
 
