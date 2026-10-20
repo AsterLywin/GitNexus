@@ -1,0 +1,182 @@
+{
+  "name": "gitnexus",
+  "displayName": "GitNexus",
+  "description": "Open-source, local-first Git intelligence for VS Code.",
+  "version": "0.1.3",
+  "publisher": "gitnexus",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gitnexus/gitnexus"
+  },
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:gitnexus.branchCreate",
+    "onCommand:gitnexus.branchList",
+    "onCommand:gitnexus.openGraph",
+    "onCommand:gitnexus.rebasePlan",
+    "onCommand:gitnexus.refreshRepository",
+    "onCommand:gitnexus.showStatus",
+    "onCommand:gitnexus.stage",
+    "onCommand:gitnexus.unstage",
+    "onStartupFinished",
+    "onCommand:gitnexus.openDiff",
+    "onCommand:gitnexus.discard",
+    "onCommand:gitnexus.commit",
+    "onCommand:gitnexus.branchDelete",
+    "onCommand:gitnexus.branchRename",
+    "onCommand:gitnexus.stashPush",
+    "onCommand:gitnexus.stashList",
+    "onCommand:gitnexus.openConflicts"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "gitnexus.openGraph",
+        "title": "GitNexus: Open Commit Graph"
+      },
+      {
+        "command": "gitnexus.refreshRepository",
+        "title": "GitNexus: Refresh Repository"
+      },
+      {
+        "command": "gitnexus.showStatus",
+        "title": "GitNexus: Show Status"
+      },
+      {
+        "command": "gitnexus.showCommit",
+        "title": "GitNexus: Show Commit"
+      },
+      {
+        "command": "gitnexus.fileHistory",
+        "title": "GitNexus: File History"
+      },
+      {
+        "command": "gitnexus.compare",
+        "title": "GitNexus: Compare Refs"
+      },
+      {
+        "command": "gitnexus.searchCommits",
+        "title": "GitNexus: Search Commits"
+      },
+      {
+        "command": "gitnexus.rebaseContinue",
+        "title": "GitNexus: Rebase Continue"
+      },
+      {
+        "command": "gitnexus.rebaseAbort",
+        "title": "GitNexus: Rebase Abort"
+      },
+      {
+        "command": "gitnexus.listWorktrees",
+        "title": "GitNexus: List Worktrees"
+      },
+      {
+        "command": "gitnexus.rebaseStart",
+        "title": "GitNexus: Start Interactive Rebase"
+      },
+      {
+        "command": "gitnexus.rebaseStatus",
+        "title": "GitNexus: Rebase Status"
+      },
+      {
+        "command": "gitnexus.stage",
+        "title": "GitNexus: Stage File"
+      },
+      {
+        "command": "gitnexus.unstage",
+        "title": "GitNexus: Unstage File"
+      },
+      {
+        "command": "gitnexus.branchList",
+        "title": "GitNexus: Switch Branch"
+      },
+      {
+        "command": "gitnexus.branchCreate",
+        "title": "GitNexus: Create Branch"
+      },
+      {
+        "command": "gitnexus.rebasePlan",
+        "title": "GitNexus: Rebase Planner"
+      },
+      {
+        "command": "gitnexus.openRebasePlanner",
+        "title": "GitNexus: Open Interactive Rebase Planner"
+      },
+      {
+        "command": "gitnexus.openConflicts",
+        "title": "GitNexus: Open Conflict Resolver"
+      },
+      {
+        "command": "gitnexus.openDiff",
+        "title": "GitNexus: Open File Diff"
+      },
+      {
+        "command": "gitnexus.discard",
+        "title": "GitNexus: Discard File Changes"
+      },
+      {
+        "command": "gitnexus.commit",
+        "title": "GitNexus: Commit Staged Changes"
+      },
+      {
+        "command": "gitnexus.branchDelete",
+        "title": "GitNexus: Delete Branch"
+      },
+      {
+        "command": "gitnexus.branchRename",
+        "title": "GitNexus: Rename Branch"
+      },
+      {
+        "command": "gitnexus.stashPush",
+        "title": "GitNexus: Stash Changes"
+      },
+      {
+        "command": "gitnexus.stashList",
+        "title": "GitNexus: Stash List"
+      },
+      {
+        "command": "gitnexus.graphNextMatch",
+        "title": "GitNexus: Graph Next Match"
+      },
+      {
+        "command": "gitnexus.graphPreviousMatch",
+        "title": "GitNexus: Graph Previous Match"
+      }
+    ],
+    "configuration": {
+      "title": "GitNexus",
+      "properties": {
+        "gitnexus.gitPath": {
+          "type": "string",
+          "default": "git",
+          "description": "Path to the Git executable."
+        },
+        "gitnexus.gitTimeoutMs": {
+          "type": "number",
+          "default": 30000,
+          "minimum": 1000,
+          "description": "Default timeout for Git commands."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "watch": "tsc -p tsconfig.json --watch",
+    "test": "npm run build && node --test dist/test/*.test.js",
+    "package": "npm run build && npx @vscode/vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.95.0",
+    "typescript": "^5.7.0"
+  }
+}
