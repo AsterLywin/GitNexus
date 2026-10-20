@@ -3,6 +3,17 @@
 All notable changes to GitNexus are documented here.
 Format follows Keep a Changelog; versions follow SemVer once 1.0 ships.
 
+## [1.0.2] — 2026-10-21
+
+### Fixed
+- Test script portability: `node --test dist/test/*.test.js` relied on
+  glob expansion that Windows shells (cmd/PowerShell via npm) never
+  perform and Node 20's test runner does not do either, so the Windows
+  Node 20 CI job failed with "Could not find 'dist\\test\\*.test.js'".
+  A small runner (`scripts/run-tests.mjs`) now enumerates the compiled
+  test files and passes an explicit list — identical behavior on every
+  OS, shell and supported Node version.
+
 ## [1.0.1] — 2026-10-21
 
 ### Fixed
