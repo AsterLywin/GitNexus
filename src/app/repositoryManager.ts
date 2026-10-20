@@ -66,6 +66,8 @@ export class RepositoryManager {
   private readonly pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly pollTimers = new Map<string, ReturnType<typeof setInterval>>();
   private readonly unsubscribeBus?: () => void;
+  /** True while publishDiff emits on the bus (synchronous) — own handler ignores those. */
+  private publishingDiff = false;
 
   constructor(
     private readonly git: GitService,
@@ -90,6 +92,13 @@ export class RepositoryManager {
     }
     if (this.bus) {
       this.unsubscribeBus = this.bus.subscribe((rootUri, event) => {
+        // Diff publications are NOTIFICATIONS of state this manager has
+        // already applied (see publishDiff) — reacting to them would
+        // schedule a phantom refresh after every refresh and inflate
+        // generations nondeterministically (timing-dependent; it broke
+        // the Windows CI matrix). Only external invalidations (watcher,
+        // sibling propagation) schedule refreshes.
+        if (this.publishingDiff) return;
         // Watcher events carry native fsPaths; snapshots key on Git's
         // canonical form. Normalize at the boundary (see store).
         this.scheduleScopedRefresh(normalizeRootPath(rootUri), scopesForEvent(event));
@@ -335,8 +344,16 @@ export class RepositoryManager {
 
   private publishDiff(previous: RepositorySnapshot | undefined, next: RepositorySnapshot): void {
     if (!this.bus || !previous) return;
-    for (const event of diffSnapshotEvents(previous, next)) {
-      this.bus.emit(next.identity.rootUri, event);
+    // The bus is synchronous: the flag reliably marks these emissions as
+    // our own for the duration of the loop, so the manager's subscription
+    // above can tell notifications apart from external invalidations.
+    this.publishingDiff = true;
+    try {
+      for (const event of diffSnapshotEvents(previous, next)) {
+        this.bus.emit(next.identity.rootUri, event);
+      }
+    } finally {
+      this.publishingDiff = false;
     }
   }
 

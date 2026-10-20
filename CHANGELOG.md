@@ -3,6 +3,23 @@
 All notable changes to GitNexus are documented here.
 Format follows Keep a Changelog; versions follow SemVer once 1.0 ships.
 
+## [1.0.3] — 2026-10-21
+
+### Fixed
+- RepositoryManager reacted to its own diff publications: every refresh
+  that changed HEAD/refs emitted bus events that the manager's own
+  subscription treated as invalidations, scheduling a phantom scoped
+  refresh ~120 ms later and inflating snapshot generations
+  nondeterministically. On the fast Linux runners the extra refresh
+  landed in harmless windows; on Windows it landed mid-refresh and a
+  state integration generation assertion failed (expected 2, got 3).
+  Diff publications are notifications of already-applied state, not
+  invalidations — the manager now marks its own emissions (the bus is
+  synchronous) and ignores them; watcher events and multi-worktree
+  sibling propagation still schedule refreshes as designed. A
+  regression assertion (generation stays put after a diff publication)
+  fails deterministically without the fix.
+
 ## [1.0.2] — 2026-10-21
 
 ### Fixed

@@ -67,6 +67,13 @@ test("state model: domains, generations, scoped freshness, bus events, mutation 
     assert.ok(events.some(e => e.type === "HEAD_CHANGED"), "HEAD_CHANGED published on the bus");
     assert.ok(events.some(e => e.type === "REFS_CHANGED"), "REFS_CHANGED published (log/HEAD + new commit)");
 
+    // Regression: the manager must not react to its OWN diff
+    // publications — they are notifications, not invalidations. A
+    // self-scheduled refresh would advance the generation on its own
+    // (timing-dependent; it surfaced on the slower Windows CI matrix).
+    await delay(400);
+    assert.equal(store.get(root)?.generation, 2, "no phantom self-refresh after a diff publication");
+
     // Scoped refresh (§37, §14): only status is re-observed; the head
     // domain keeps its original generation in the freshness map.
     await writeFile(join(dir, "a.txt"), "dirty\n");
