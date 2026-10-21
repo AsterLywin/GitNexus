@@ -3,6 +3,36 @@
 All notable changes to GitNexus are documented here.
 Format follows Keep a Changelog; versions follow SemVer once 1.0 ships.
 
+## [1.1.0] — 2026-10-21
+
+### Added — Phase 6: editor annotation layer (the GitLens signature)
+- **Current-line blame**: an inline annotation at the end of the cursor
+  line — author, relative time, commit summary
+  (`gitnexus.blame.currentLine.enabled`).
+- **Full-file gutter blame** (`gitnexus.blameToggle`, editor context
+  menu): author + age column per line with an optional age heat tint
+  (`gitnexus.blame.gutter.heatmap`); state persists per workspace.
+- **Commit hover card** on any line: subject, body, author, absolute +
+  relative dates, copy-hash and show-commit actions
+  (`gitnexus.blame.hover.enabled`).
+- Blame engine completed: line-porcelain summaries, author emails,
+  original line numbers, uncommitted-line detection, and a cached
+  `commitInfo` read for hover cards.
+
+### Changed
+- **CodeLens rewritten GitLens-style**: one file-level lens (most recent
+  change) plus one lens per function/method/class — replacing one lens
+  per line. Disable with `gitnexus.blame.codeLens.enabled`.
+- Blame results are shared through a cache keyed by canonical root +
+  repository generation + file fingerprint (mtime/size), so annotations
+  never survive a commit or a saved edit.
+- RepositoryStateStore gained an `all()` enumeration used by the
+  annotation layer to resolve files to repositories.
+
+### Known limitation
+- Annotations read the file from disk; unsaved (dirty) buffers show no
+  annotations until saved, so line numbers can never drift.
+
 ## [1.0.4] — 2026-10-21
 
 ### Fixed

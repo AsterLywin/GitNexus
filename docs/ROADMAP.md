@@ -3,7 +3,7 @@
 **Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit + all five phases (build clean, 41/41 tests pass, VSIX 1.0.0 packaged)
 **Reference specs:** [GIT_ENGINE_SPEC.md](./GIT_ENGINE_SPEC.md) · [REPOSITORY_STATE_MODEL.md](./REPOSITORY_STATE_MODEL.md)
 
-## Where we are: 100% — v1.0.0 (all phases complete)
+## Where we are: v1.1.0 — the original roadmap is complete; Phase 6 (post-1.0, GitLens-parity track) shipped
 
 | Area | Done | State |
 | --- | --- | --- |
@@ -120,6 +120,29 @@ Goal: the layers the architecture reserves for last (State Layers C & D).
 - [x] **Release**: Marketplace publishing, README/docs polish, **v1.0.0**.
 
 **Exit criteria:** both specs fully implemented, PR + AI layers shipped, v1.0.0 published.
+
+---
+
+## Phase 6 — Editor annotation layer (post-1.0, GitLens parity) → v1.1.0
+
+Goal: the editor-surface features GitLens is known for, on top of the
+state engine — aimed at the largest perceived gap to GitLens.
+
+- [x] **Blame engine completion**: line-porcelain summaries, author
+      emails, original lines, uncommitted detection, cached commitInfo.
+- [x] **Current-line blame**: inline author / relative time / summary.
+- [x] **Gutter blame + heat**: full-file author+age column, age-bucket
+      tint, toggle command, workspace-persisted state.
+- [x] **Commit hover cards**: subject/body/author/dates + copy-hash and
+      show-commit actions.
+- [x] **CodeLens rewrite**: file-level + per-symbol lenses (was: a lens
+      per line).
+- [x] **BlameCache**: canonical-root keying, generation + file
+      fingerprint invalidation.
+
+**Exit criteria:** annotations live in the editor with tests (48) green. Next
+candidates: buffer-accurate blame for dirty editors (`git blame --contents`),
+sidebar views (Commits/Contributors), GitLab/Bitbucket PR adapters.
 
 ---
 

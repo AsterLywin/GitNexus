@@ -41,6 +41,11 @@ export class RepositoryStateStore {
     this.snapshots.delete(normalizeRootPath(rootUri));
   }
 
+  /** Every snapshot currently held (annotation layers resolve files to roots with this). */
+  all(): RepositorySnapshot[] {
+    return [...this.snapshots.values()];
+  }
+
   /** All snapshots sharing a common Git directory (multi-worktree, §26). */
   byCommonDir(commonDir: string): RepositorySnapshot[] {
     const wanted = normalizeRootPath(commonDir);

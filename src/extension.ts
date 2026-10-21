@@ -12,6 +12,10 @@ import { InteractiveGraphPanel } from "./features/graph/graphPanel";
 import { CommitDetailsService } from "./features/commit/commitDetailsService";
 import { BlameService } from "./features/blame/blameService";
 import { BlameCodeLensProvider } from "./features/blame/blameCodeLens";
+import { BlameCache } from "./features/blame/blameCache";
+import { CurrentLineBlameController } from "./features/blame/currentLineBlame";
+import { BlameGutterController } from "./features/blame/blameGutter";
+import { BlameHoverProvider } from "./features/blame/blameHover";
 import { FileHistoryService } from "./features/history/fileHistoryService";
 import { CompareService } from "./features/compare/compareService";
 import { RefService } from "./git/refService";
@@ -846,11 +850,34 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   });
 
-  const blameProvider = new BlameCodeLensProvider(blame);
+  // Editor annotation layer (blame): shared cache + current-line
+  // annotation + gutter annotations + commit hover + CodeLens.
+  const blameCache = new BlameCache(blame, store);
+  const blameProvider = new BlameCodeLensProvider(blameCache);
+  const currentLineBlame = new CurrentLineBlameController(blameCache);
+  const blameGutter = new BlameGutterController(blameCache, context.workspaceState);
   context.subscriptions.push(
     vscode.languages.registerCodeLensProvider({ scheme: "file" }, blameProvider),
-    { dispose: () => blameProvider.dispose() }
+    { dispose: () => blameProvider.dispose() },
+    vscode.languages.registerHoverProvider({ scheme: "file" }, new BlameHoverProvider(blameCache, blame)),
+    currentLineBlame,
+    blameGutter,
+    {
+      dispose: store.onChanged(() => {
+        blameProvider.refresh();
+        currentLineBlame.refresh();
+        blameGutter.refreshAll();
+      })
+    }
   );
+  commands.register("gitnexus.blameToggle", async () => {
+    await blameGutter.toggle();
+  });
+  commands.register("gitnexus.copyHash", async (hash?: string) => {
+    if (!hash) return;
+    await vscode.env.clipboard.writeText(hash);
+    void vscode.window.setStatusBarMessage(`GitNexus: copied ${hash.slice(0, 10)}`, 2000);
+  });
 
 for (const folder of vscode.workspace.workspaceFolders ?? []) {
   const scm = new GitNexusScmProvider(folder.uri, store, executor);

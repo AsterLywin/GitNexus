@@ -15,6 +15,9 @@ layer (GitHub adapter included), and an AI context engine.
   size), ref and PR decorations, search with next/previous match, and
   per-commit actions: checkout, create branch/tag, copy hash, add to AI
   context.
+- **Blame annotations** — current-line blame (author, relative time,
+  summary), full-file gutter blame with age heat (toggle from the editor
+  context menu), commit hover cards, and file/per-function CodeLens.
 - **Source control** — staged/unstaged groups, stage/unstage/discard,
   commit, file badges and Git theme colors, rename-aware tooltips.
 - **Branches, tags, remotes, stash** — full CRUD plus fetch/pull/push

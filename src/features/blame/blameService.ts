@@ -1,14 +1,41 @@
 import { GitProcessExecutor } from "../../git/processExecutor";
 
 export interface BlameLine {
+  /** 1-based line number in the blamed revision. */
   line: number;
+  /** 1-based line number in the commit that introduced the line. */
+  originalLine: number;
   commit: string;
   author: string;
+  authorEmail: string;
+  /** Author timestamp, seconds since epoch. */
   timestamp: number;
+  summary: string;
   content: string;
+  /** True for lines not yet in any commit (zero hash from Git). */
+  uncommitted: boolean;
 }
 
+export interface CommitInfo {
+  hash: string;
+  author: string;
+  authorEmail: string;
+  /** Author timestamp, seconds since epoch. */
+  timestamp: number;
+  subject: string;
+  body: string;
+}
+
+const UNCOMMITTED_HASH = "0000000000000000000000000000000000000000";
+
+/**
+ * Blame + commit metadata reads (GIT_ENGINE_SPEC §14). Parsing targets
+ * `git blame --line-porcelain`, whose per-line header blocks repeat every
+ * field — robust against filenames/summaries with arbitrary characters.
+ */
 export class BlameService {
+  private readonly commitInfoCache = new Map<string, CommitInfo>();
+
   constructor(
     private readonly executor: GitProcessExecutor,
     private readonly timeoutMs = 30000
@@ -39,6 +66,29 @@ export class BlameService {
     );
     return parseBlame(result.stdout);
   }
+
+  /** Full metadata for one commit (hover cards, details). Cached per root+hash. */
+  async commitInfo(root: string, hash: string): Promise<CommitInfo | undefined> {
+    const key = `${root}\n${hash}`;
+    const cached = this.commitInfoCache.get(key);
+    if (cached) return cached;
+    const result = await this.executor.exec(
+      ["log", "-1", "--format=%an%x00%ae%x00%at%x00%s%x00%b%x00", hash],
+      { cwd: root, timeoutMs: this.timeoutMs }
+    ).catch(() => undefined);
+    if (!result || result.exitCode !== 0) return undefined;
+    const [author = "", authorEmail = "", at = "0", subject = "", body = ""] = result.stdout.split("\x00");
+    const info: CommitInfo = {
+      hash,
+      author,
+      authorEmail,
+      timestamp: Number(at) || 0,
+      subject,
+      body: body.replace(/\n+$/, "")
+    };
+    this.commitInfoCache.set(key, info);
+    return info;
+  }
 }
 
 export { parseBlame };
@@ -53,19 +103,27 @@ function parseBlame(raw: string): BlameLine[] {
       const fields = line.split(" ");
       current = {
         commit: fields[0],
-        line: Number(fields[2])
+        originalLine: Number(fields[1]),
+        line: Number(fields[2]),
+        uncommitted: fields[0] === UNCOMMITTED_HASH
       };
       continue;
     }
     if (line.startsWith("author ")) current.author = line.slice(7);
+    else if (line.startsWith("author-mail ")) current.authorEmail = line.slice(12).replace(/^<|>$/g, "");
     else if (line.startsWith("author-time ")) current.timestamp = Number(line.slice(12));
+    else if (line.startsWith("summary ")) current.summary = line.slice(8);
     else if (line.startsWith("\t")) {
       output.push({
         line: current.line ?? output.length + 1,
+        originalLine: current.originalLine ?? current.line ?? output.length + 1,
         commit: current.commit ?? "",
         author: current.author ?? "",
+        authorEmail: current.authorEmail ?? "",
         timestamp: current.timestamp ?? 0,
-        content: line.slice(1)
+        summary: current.summary ?? "",
+        content: line.slice(1),
+        uncommitted: current.uncommitted ?? false
       });
       current = {};
     }
