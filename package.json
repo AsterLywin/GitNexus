@@ -2,7 +2,7 @@
   "name": "gitnexus",
   "displayName": "GitNexus",
   "description": "Open-source, local-first Git intelligence for VS Code.",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "publisher": "gitnexus",
   "license": "Apache-2.0",
   "repository": {
@@ -71,7 +71,9 @@
     "onCommand:gitnexus.compareRefs",
     "onCommand:gitnexus.searchCompareClear",
     "onCommand:gitnexus.generateCommitMessage",
-    "onCommand:gitnexus.explainCommit"
+    "onCommand:gitnexus.explainCommit",
+    "onCommand:gitnexus.setGitLabToken",
+    "onCommand:gitnexus.setBitbucketCredentials"
   ],
   "main": "./dist/src/extension.js",
   "contributes": {
@@ -327,6 +329,14 @@
       {
         "command": "gitnexus.explainCommit",
         "title": "GitNexus: Explain Commit (AI)"
+      },
+      {
+        "command": "gitnexus.setGitLabToken",
+        "title": "GitNexus: Set GitLab Token"
+      },
+      {
+        "command": "gitnexus.setBitbucketCredentials",
+        "title": "GitNexus: Set Bitbucket Credentials"
       }
     ],
     "configuration": {
@@ -406,6 +416,14 @@
             ]
           },
           "description": "Autolink rules for commit text: references like PROJ-123 become links. The url may contain <num> for the reference id. GitHub #123 issue links are added automatically from the remote."
+        },
+        "gitnexus.pr.gitlabHosts": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional self-hosted GitLab hostnames to recognize for merge requests (hosts containing 'gitlab' and gitlab.com are always recognized)."
         }
       }
     },

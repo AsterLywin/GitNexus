@@ -50,7 +50,9 @@ import { askModel, pickChatModel } from "./features/ai/lmChat";
 import { RebasePlannerPanel } from "./features/rebase/rebasePlannerPanel";
 import { RemoteService } from "./git/remoteService";
 import { GitHubPullRequestProvider } from "./features/pr/githubProvider";
-import { parseGitHubRemote } from "./features/pr/remoteInfo";
+import { parseBitbucketRemote, parseGitHubRemote, parseGitLabRemote } from "./features/pr/remoteInfo";
+import { GitLabPullRequestProvider } from "./features/pr/gitlabProvider";
+import { BitbucketPullRequestProvider } from "./features/pr/bitbucketProvider";
 import { buildPrDecorations } from "./features/pr/prDecorations";
 import { PullRequestProvider } from "./domain/pr";
 import { AiContextStore, buildAiContextPackage } from "./features/ai/aiContext";
@@ -123,16 +125,57 @@ export function activate(context: vscode.ExtensionContext): void {
     const remoteList = await remotes.list(root).catch(() => []);
     const ordered = [...remoteList].sort((a, b) =>
       (a.name === "origin" ? 0 : 1) - (b.name === "origin" ? 0 : 1));
+    const gitlabHosts = vscode.workspace.getConfiguration("gitnexus").get<string[]>("pr.gitlabHosts", []);
     for (const remote of ordered) {
-      const parsed = parseGitHubRemote(remote.fetchUrl ?? remote.pushUrl ?? "");
-      if (!parsed) continue;
-      return new GitHubPullRequestProvider({
-        remote: parsed,
-        getToken: async () => {
-          const session = await vscode.authentication.getSession("github", ["repo"], { createIfNone: interactive });
-          return session?.accessToken;
-        }
-      });
+      const url = remote.fetchUrl ?? remote.pushUrl ?? "";
+
+      const github = parseGitHubRemote(url);
+      if (github) {
+        return new GitHubPullRequestProvider({
+          remote: github,
+          getToken: async () => {
+            const session = await vscode.authentication.getSession("github", ["repo"], { createIfNone: interactive });
+            return session?.accessToken;
+          }
+        });
+      }
+
+      const gitlab = parseGitLabRemote(url, gitlabHosts);
+      if (gitlab) {
+        return new GitLabPullRequestProvider({
+          remote: gitlab,
+          getToken: async () => {
+            // The GitLab Workflow extension provides a "gitlab" auth
+            // provider when installed; otherwise our SecretStorage token.
+            let session: vscode.AuthenticationSession | undefined;
+            try {
+              session = await vscode.authentication.getSession("gitlab", ["api"], { createIfNone: false });
+            } catch {
+              session = undefined;
+            }
+            if (session?.accessToken) return session.accessToken;
+            return context.secrets.get(`gitnexus.gitlabToken.${gitlab.host}`);
+          }
+        });
+      }
+
+      const bitbucket = parseBitbucketRemote(url);
+      if (bitbucket) {
+        return new BitbucketPullRequestProvider({
+          remote: bitbucket,
+          getAuthHeader: async () => {
+            const raw = await context.secrets.get("gitnexus.bitbucketCredentials");
+            if (!raw) return undefined;
+            try {
+              const parsed = JSON.parse(raw) as { username?: string; password?: string };
+              if (!parsed.username || !parsed.password) return undefined;
+              return `Basic ${Buffer.from(`${parsed.username}:${parsed.password}`).toString("base64")}`;
+            } catch {
+              return undefined;
+            }
+          }
+        });
+      }
     }
     return undefined;
   };
@@ -680,7 +723,7 @@ export function activate(context: vscode.ExtensionContext): void {
       const root = await resolveWorkspacePath(); if (!root) return;
       const provider = await makePrProvider(root, true);
       if (!provider) {
-        vscode.window.showInformationMessage("GitNexus: no GitHub remote found for this repository.");
+        vscode.window.showInformationMessage("GitNexus: no GitHub, GitLab or Bitbucket remote found for this repository.");
         return;
       }
       const prs = await provider.listOpen();
@@ -700,12 +743,45 @@ export function activate(context: vscode.ExtensionContext): void {
     } catch (error) { showError(error); }
   });
 
+  commands.register("gitnexus.setGitLabToken", async () => {
+    try {
+      const host = await vscode.window.showInputBox({
+        prompt: "GitLab host",
+        value: "gitlab.com",
+        placeHolder: "gitlab.com (or your self-hosted host)"
+      });
+      if (!host?.trim()) return;
+      const token = await vscode.window.showInputBox({
+        prompt: `Personal access token for ${host.trim()} (api scope)`,
+        password: true
+      });
+      if (!token) return;
+      await context.secrets.store(`gitnexus.gitlabToken.${host.trim()}`, token);
+      void vscode.window.showInformationMessage(`GitNexus: GitLab token saved for ${host.trim()}.`);
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.setBitbucketCredentials", async () => {
+    try {
+      const username = await vscode.window.showInputBox({ prompt: "Bitbucket username" });
+      if (!username?.trim()) return;
+      const password = await vscode.window.showInputBox({
+        prompt: "Bitbucket app password",
+        password: true
+      });
+      if (!password) return;
+      await context.secrets.store("gitnexus.bitbucketCredentials",
+        JSON.stringify({ username: username.trim(), password }));
+      void vscode.window.showInformationMessage("GitNexus: Bitbucket credentials saved.");
+    } catch (error) { showError(error); }
+  });
+
   commands.register("gitnexus.prStatus", async () => {
     try {
       const root = await resolveWorkspacePath(); if (!root) return;
       const provider = await makePrProvider(root, true);
       if (!provider) {
-        vscode.window.showInformationMessage("GitNexus: no GitHub remote found for this repository.");
+        vscode.window.showInformationMessage("GitNexus: no GitHub, GitLab or Bitbucket remote found for this repository.");
         return;
       }
       const snapshot = await repositories.refresh(root);

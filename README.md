@@ -37,8 +37,10 @@ layer (GitHub adapter included), and an AI context engine.
 - **Operation lifecycle** — continue / skip / abort for merge, rebase,
   cherry-pick and revert; interactive rebase planner with todo editing,
   including editing the todo of a rebase already in progress.
-- **Pull requests (GitHub)** — open-PR list and decorations on the
-  graph, per-branch PR status with CI and review state, create-PR flow.
+- **Pull requests (GitHub, GitLab, Bitbucket)** — open-PR list and
+  decorations on the graph, per-branch PR status with CI and review
+  state (GitHub), create-PR flow; GitLab tokens and Bitbucket app
+  passwords live in SecretStorage.
 - **AI context** — build a Markdown context package (commits, changed
   files, limitations) pinned to the repository generation; the status
   bar flags it when it goes stale.

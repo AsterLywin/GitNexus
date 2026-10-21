@@ -3,7 +3,7 @@
 **Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit + all five phases (build clean, 41/41 tests pass, VSIX 1.0.0 packaged)
 **Reference specs:** [GIT_ENGINE_SPEC.md](./GIT_ENGINE_SPEC.md) · [REPOSITORY_STATE_MODEL.md](./REPOSITORY_STATE_MODEL.md)
 
-## Where we are: v1.4.0 — GitLens-parity track: Phases 6–9 shipped (annotations, sidebar views, buffer blame + Search & Compare, graph polish + autolinks + AI)
+## Where we are: v1.5.0 — GitLens-parity track: Phases 6–10 shipped (…, + GitLab/Bitbucket PR adapters)
 
 | Area | Done | State |
 | --- | --- | --- |
@@ -192,6 +192,27 @@ Goal: the activity-bar surface — the second-largest perceived GitLens gap.
 GitLab/Bitbucket PR adapters (need a token story — VS Code ships no
 built-in auth provider for them, unlike GitHub), inline graph row
 actions, deep links into the graph from tree views.
+
+---
+
+## Phase 10 — GitLab & Bitbucket PR adapters → v1.5.0
+
+- [x] **GitLab adapter**: v4 merge requests (list + per-branch),
+      nested groups, self-hosted hosts (name heuristic +
+      `gitnexus.pr.gitlabHosts`); auth via the "gitlab" auth session
+      when available, else a SecretStorage PAT
+      (`gitnexus.setGitLabToken`).
+- [x] **Bitbucket Cloud adapter**: 2.0 pull requests, Basic
+      app-password auth from SecretStorage
+      (`gitnexus.setBitbucketCredentials`).
+- [x] Remote-walking provider resolution across all three hosts; the
+      token story is SecretStorage — tokens never touch settings or
+      disk config.
+
+**Exit criteria:** shipped with tests (66) green. Next candidates:
+inline graph row actions, deep links from tree views into the graph,
+GitLab/Bitbucket CI + review enrichment (GitHub-only today),
+self-hosted GitHub Enterprise base-URL support.
 
 ---
 

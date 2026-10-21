@@ -3,6 +3,22 @@
 All notable changes to GitNexus are documented here.
 Format follows Keep a Changelog; versions follow SemVer once 1.0 ships.
 
+## [1.5.0] — 2026-10-21
+
+### Added — Phase 10: GitLab & Bitbucket PR adapters
+- **GitLab adapter** (gitlab.com + self-hosted): merge requests list
+  and per-branch lookup via the v4 API, nested group paths, web create
+  URL. Auth: the GitLab auth session when a provider extension is
+  installed, otherwise a personal access token stored in
+  SecretStorage via "GitNexus: Set GitLab Token". Extra self-hosted
+  hosts can be declared in `gitnexus.pr.gitlabHosts`.
+- **Bitbucket Cloud adapter**: pull requests via the 2.0 API with
+  Basic app-password auth, credentials stored in SecretStorage via
+  "GitNexus: Set Bitbucket Credentials".
+- Provider resolution now walks remotes (origin first) across all
+  three hosts; the PR commands, branch decorations and web
+  create-PR flow work unchanged on the chosen provider.
+
 ## [1.4.0] — 2026-10-21
 
 ### Added — Phase 9: graph polish, autolinks, AI features
