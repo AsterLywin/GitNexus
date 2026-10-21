@@ -43,6 +43,8 @@ import { WorktreePanel, WorktreeTreeItem } from "./features/worktree/worktreePan
 import { CommitsViewProvider, CommitTreeItem } from "./features/explorer/commitsView";
 import { BranchesViewProvider, BranchTreeItem, TagsViewProvider, TagTreeItem, RemotesViewProvider, RemoteTreeItem } from "./features/explorer/refsViews";
 import { StashesViewProvider, StashTreeItem, ContributorsViewProvider } from "./features/explorer/stashContributorsViews";
+import { SearchCompareViewProvider } from "./features/explorer/searchCompareView";
+import { DiffService } from "./features/diff/diffService";
 import { RebasePlannerPanel } from "./features/rebase/rebasePlannerPanel";
 import { RemoteService } from "./git/remoteService";
 import { GitHubPullRequestProvider } from "./features/pr/githubProvider";
@@ -140,6 +142,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const remotesView = new RemotesViewProvider(store, resolveWorkspacePath);
   const stashesView = new StashesViewProvider(store, resolveWorkspacePath);
   const contributorsView = new ContributorsViewProvider(store, resolveWorkspacePath, git);
+  const searchCompareView = new SearchCompareViewProvider();
+  const diffs = new DiffService(executor, timeoutMs);
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(STAGE_SCHEME, new StageDocumentProvider(conflicts)),
     vscode.window.registerTreeDataProvider("gitnexus.worktrees", worktreePanel),
@@ -149,7 +153,9 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.window.registerTreeDataProvider("gitnexus.remotes", remotesView),
     vscode.window.registerTreeDataProvider("gitnexus.stashes", stashesView),
     vscode.window.registerTreeDataProvider("gitnexus.contributors", contributorsView),
-    commitsView, branchesView, tagsView, remotesView, stashesView, contributorsView
+    vscode.window.registerTreeDataProvider("gitnexus.searchCompare", searchCompareView),
+    commitsView, branchesView, tagsView, remotesView, stashesView, contributorsView,
+    searchCompareView
   );
   void worktreePanel.refresh();
   const commands = new CommandRegistry();
@@ -273,27 +279,6 @@ export function activate(context: vscode.ExtensionContext): void {
     }
   });
 
-
-  commands.register("gitnexus.searchCommits", async () => {
-    try {
-      const root = await resolveWorkspacePath();
-      if (!root) return;
-      const input = await vscode.window.showInputBox({
-        prompt: "GitNexus commit search",
-        placeHolder: 'author:Alice message:"fix login" file:src/auth.ts after:2026-01-01'
-      });
-      if (!input) return;
-      const results = await search.search(root, parseCommitSearch(input));
-      const text = results.map(c => `${c.id.slice(0, 10)}  ${c.authorName}  ${c.subject}`).join("\n");
-      const document = await vscode.workspace.openTextDocument({
-        language: "text",
-        content: text || "No commits found."
-      });
-      await vscode.window.showTextDocument(document, { preview: false });
-    } catch (error) {
-      showError(error);
-    }
-  });
 
 
   commands.register("gitnexus.openDiff", async (uri: vscode.Uri) => {
@@ -997,6 +982,52 @@ export function activate(context: vscode.ExtensionContext): void {
       await stash.drop(item.root, item.entry.index);
       await repositories.refresh(item.root);
     } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.searchCommits", async () => {
+    try {
+      const root = await resolveWorkspacePath(); if (!root) return;
+      const input = await vscode.window.showInputBox({
+        prompt: "Search commits",
+        placeHolder: "text · author:name · file:path · after:2024-01-01 · code:text (pickaxe)"
+      });
+      if (!input?.trim()) return;
+      const query = input.trim();
+      const commits = query.toLowerCase().startsWith("code:")
+        ? await search.pickaxe(root, query.slice(5).trim(), "string", { limit: 200 })
+        : await search.search(root, { ...parseCommitSearch(query), limit: 200 });
+      searchCompareView.setSearch(root, query, commits);
+      await vscode.commands.executeCommand("gitnexus.searchCompare.focus");
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.compareRefs", async () => {
+    try {
+      const root = await resolveWorkspacePath(); if (!root) return;
+      const snapshot = store.get(root) ?? store.all()[0];
+      if (!snapshot?.domains) { void vscode.window.showWarningMessage("GitNexus: no repository state yet."); return; }
+      const candidates = [
+        "HEAD",
+        ...snapshot.domains.refs.branches.map(r => r.shortName),
+        ...snapshot.domains.refs.tags.map(r => r.shortName)
+      ];
+      const base = await vscode.window.showQuickPick(candidates, { placeHolder: "Base — compare FROM" });
+      if (!base) return;
+      const target = await vscode.window.showQuickPick(candidates.filter(c => c !== base), { placeHolder: "Target — compare TO" });
+      if (!target) return;
+      const canonical = snapshot.identity.rootUri;
+      const [ahead, behind, files] = await Promise.all([
+        git.log(canonical, 200, { range: `${base}..${target}` }),
+        git.log(canonical, 200, { range: `${target}..${base}` }),
+        diffs.nameStatus(canonical, [`${base}...${target}`])
+      ]);
+      searchCompareView.setCompare({ root: canonical, base, target, ahead, behind, files });
+      await vscode.commands.executeCommand("gitnexus.searchCompare.focus");
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.searchCompareClear", async () => {
+    searchCompareView.clear();
   });
 
   commands.register("gitnexus.remoteFetchItem", async (item?: RemoteTreeItem) => {

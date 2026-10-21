@@ -17,9 +17,11 @@ layer (GitHub adapter included), and an AI context engine.
   context.
 - **Blame annotations** — current-line blame (author, relative time,
   summary), full-file gutter blame with age heat (toggle from the editor
-  context menu), commit hover cards, and file/per-function CodeLens.
+  context menu), commit hover cards, and file/per-function CodeLens —
+  all accurate on unsaved buffers too (`git blame --contents`).
 - **Sidebar views** — a GitNexus activity-bar container with Commits,
-  Branches, Tags, Stashes, Remotes, Contributors and Worktrees views,
+  Branches, Tags, Stashes, Remotes, Contributors, Worktrees and a
+  Search & Compare view (qualifier + pickaxe search, two-ref compare),
   with checkout / create / delete / stash / fetch actions in context.
 - **Source control** — staged/unstaged groups, stage/unstage/discard,
   commit, file badges and Git theme colors, rename-aware tooltips.

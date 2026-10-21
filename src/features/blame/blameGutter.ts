@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { BlameCache } from "./blameCache";
 import { BlameLine } from "./blameService";
+import { blameForDocument } from "./documentBlame";
 import { formatRelativeShort, heatBucket } from "./format";
 
 const MAX_LINES = 5000;
@@ -9,10 +10,11 @@ const STATE_KEY = "gitnexus.blameGutter.enabled";
 /**
  * Full-file blame annotations in the editor's left margin (toggle:
  * `gitnexus.blameToggle`), with an optional age heat tint per line.
- * Annotations read the working-tree file from disk; dirty buffers are
- * left unannotated until saved so line numbers can never drift.
+ * Dirty buffers are blamed from memory (`--contents`), re-applied on a
+ * debounce while typing, so annotations track unsaved edits exactly.
  */
 export class BlameGutterController {
+  private readonly changeTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly textType = vscode.window.createTextEditorDecorationType({});
   // Per-range background colors are not supported by the decoration API,
   // so heat uses one whole-line type per age bucket (hot = newer).
@@ -36,6 +38,18 @@ export class BlameGutterController {
         for (const editor of vscode.window.visibleTextEditors) {
           if (editor.document === document) void this.apply(editor);
         }
+      }),
+      vscode.workspace.onDidChangeTextDocument(event => {
+        if (!this.enabled) return;
+        const key = event.document.uri.toString();
+        const existing = this.changeTimers.get(key);
+        if (existing) clearTimeout(existing);
+        this.changeTimers.set(key, setTimeout(() => {
+          this.changeTimers.delete(key);
+          for (const editor of vscode.window.visibleTextEditors) {
+            if (editor.document === event.document) void this.apply(editor);
+          }
+        }, 500));
       }),
       vscode.workspace.onDidChangeConfiguration(event => {
         if (event.affectsConfiguration("gitnexus.blame")) this.refreshAll();
@@ -65,7 +79,7 @@ export class BlameGutterController {
   private async apply(editor: vscode.TextEditor): Promise<void> {
     if (!this.enabled) { this.clear(editor); return; }
     const document = editor.document;
-    if (document.uri.scheme !== "file" || document.isDirty || document.lineCount > MAX_LINES) {
+    if (document.uri.scheme !== "file" || document.lineCount > MAX_LINES) {
       this.clear(editor);
       return;
     }
@@ -74,7 +88,7 @@ export class BlameGutterController {
 
     let lines: BlameLine[];
     try {
-      lines = await this.cache.get(target.root, target.relativePath);
+      lines = await blameForDocument(this.cache, target, document);
     } catch {
       this.clear(editor);
       return;
@@ -114,6 +128,8 @@ export class BlameGutterController {
   }
 
   dispose(): void {
+    for (const timer of this.changeTimers.values()) clearTimeout(timer);
+    this.changeTimers.clear();
     this.textType.dispose();
     for (const type of this.heatTypes) type.dispose();
     for (const d of this.disposables) d.dispose();

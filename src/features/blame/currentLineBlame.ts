@@ -1,13 +1,14 @@
 import * as vscode from "vscode";
 import { BlameCache } from "./blameCache";
 import { BlameLine } from "./blameService";
+import { blameForDocument } from "./documentBlame";
 import { formatRelativeTime } from "./format";
 
 /**
  * GitLens-style current-line blame: a quiet inline annotation at the end
- * of the line the cursor is on — "Author, 3 days ago • summary". Reads
- * the working-tree file from disk; while the buffer is dirty the
- * attribution may lag the edit, so the annotation hides until save.
+ * of the line the cursor is on — "Author, 3 days ago • summary". Dirty
+ * buffers are blamed from memory (`--contents`), so the annotation
+ * tracks unsaved edits; untouched lines keep their true attribution.
  */
 export class CurrentLineBlameController {
   private readonly decoration = vscode.window.createTextEditorDecorationType({
@@ -27,6 +28,9 @@ export class CurrentLineBlameController {
         if (event.textEditor === vscode.window.activeTextEditor) this.schedule();
       }),
       vscode.workspace.onDidSaveTextDocument(() => this.schedule(0)),
+      vscode.workspace.onDidChangeTextDocument(event => {
+        if (event.document === vscode.window.activeTextEditor?.document) this.schedule(300);
+      }),
       vscode.workspace.onDidChangeConfiguration(event => {
         if (event.affectsConfiguration("gitnexus.blame")) this.schedule(0);
       })
@@ -58,7 +62,7 @@ export class CurrentLineBlameController {
   private async update(editor: vscode.TextEditor): Promise<void> {
     if (editor !== vscode.window.activeTextEditor) return;
     const clear = () => editor.setDecorations(this.decoration, []);
-    if (!this.enabled || editor.document.uri.scheme !== "file" || editor.document.isDirty) {
+    if (!this.enabled || editor.document.uri.scheme !== "file") {
       clear();
       return;
     }
@@ -67,7 +71,7 @@ export class CurrentLineBlameController {
 
     let lines: BlameLine[];
     try {
-      lines = await this.cache.get(target.root, target.relativePath);
+      lines = await blameForDocument(this.cache, target, editor.document);
     } catch {
       clear();
       return;

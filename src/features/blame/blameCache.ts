@@ -1,4 +1,5 @@
 import * as path from "node:path";
+import { createHash } from "node:crypto";
 import { stat } from "node:fs/promises";
 import { RepositoryStateStore, normalizeRootPath } from "../../state/repositoryStateStore";
 import { BlameLine, BlameService } from "./blameService";
@@ -45,6 +46,8 @@ interface CacheEntry {
  */
 export class BlameCache {
   private readonly entries = new Map<string, CacheEntry>();
+  /** Buffer blames keyed by content hash — self-invalidating by construction. */
+  private readonly bufferEntries = new Map<string, Promise<BlameLine[]>>();
 
   constructor(
     private readonly blame: BlameService,
@@ -92,6 +95,29 @@ export class BlameCache {
       throw error;
     });
     this.entries.set(key, { generation, mtimeMs: fingerprint?.mtimeMs, size: fingerprint?.size, pending });
+    return pending;
+  }
+
+  /**
+   * Blame for an in-memory buffer (dirty editor). Identical content hits
+   * the cache; any keystroke changes the hash and therefore the entry.
+   */
+  async getBuffer(root: string, relativePath: string, content: string): Promise<BlameLine[]> {
+    const hash = createHash("sha1").update(content).digest("hex");
+    const key = `${normalizeRootPath(root)}\n${relativePath}\n${hash}`;
+    const existing = this.bufferEntries.get(key);
+    if (existing) return existing;
+    const pending = this.blame.blameBuffer(root, relativePath, content).catch((error: unknown) => {
+      this.bufferEntries.delete(key);
+      throw error;
+    });
+    this.bufferEntries.set(key, pending);
+    // Keep only the most recent handful of buffer snapshots.
+    while (this.bufferEntries.size > 16) {
+      const oldest = this.bufferEntries.keys().next().value;
+      if (oldest === undefined) break;
+      this.bufferEntries.delete(oldest);
+    }
     return pending;
   }
 

@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { BlameCache } from "./blameCache";
 import { BlameLine } from "./blameService";
+import { blameForDocument } from "./documentBlame";
 import { formatRelativeTime } from "./format";
 
 interface FlatSymbol {
@@ -28,14 +29,14 @@ export class BlameCodeLensProvider implements vscode.CodeLensProvider {
     if (!vscode.workspace.getConfiguration("gitnexus").get<boolean>("blame.codeLens.enabled", true)) {
       return [];
     }
-    if (document.uri.scheme !== "file" || document.isDirty) return [];
+    if (document.uri.scheme !== "file") return [];
 
     const target = this.cache.targetFor(document.uri.fsPath);
     if (!target) return [];
 
     let lines: BlameLine[];
     try {
-      lines = await this.cache.get(target.root, target.relativePath);
+      lines = await blameForDocument(this.cache, target, document);
     } catch {
       return [];
     }

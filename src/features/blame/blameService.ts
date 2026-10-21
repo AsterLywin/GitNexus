@@ -1,4 +1,9 @@
+import { rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { GitProcessExecutor } from "../../git/processExecutor";
+
+let bufferCounter = 0;
 
 export interface BlameLine {
   /** 1-based line number in the blamed revision. */
@@ -47,6 +52,26 @@ export class BlameService {
       { cwd: root, timeoutMs: this.timeoutMs }
     );
     return parseBlame(result.stdout);
+  }
+
+  /**
+   * Blame as if the file's contents were `content` (an editor buffer,
+   * possibly unsaved) via `git blame --contents`. Lines that differ from
+   * HEAD come back with the zero hash (uncommitted), shifted lines keep
+   * their true attribution — so annotations stay correct while typing.
+   */
+  async blameBuffer(root: string, file: string, content: string): Promise<BlameLine[]> {
+    const scratch = join(tmpdir(), `gitnexus-blame-${process.pid}-${bufferCounter++}.tmp`);
+    await writeFile(scratch, content, "utf8");
+    try {
+      const result = await this.executor.exec(
+        ["blame", "--line-porcelain", "--contents", scratch, "--", file],
+        { cwd: root, timeoutMs: this.timeoutMs }
+      );
+      return parseBlame(result.stdout);
+    } finally {
+      await rm(scratch, { force: true }).catch(() => undefined);
+    }
   }
 
   /** Blame a 1-based inclusive line range (GIT_ENGINE_SPEC §14). */

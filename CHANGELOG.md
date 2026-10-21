@@ -3,6 +3,26 @@
 All notable changes to GitNexus are documented here.
 Format follows Keep a Changelog; versions follow SemVer once 1.0 ships.
 
+## [1.3.0] — 2026-10-21
+
+### Added — Phase 8: buffer-accurate blame + Search & Compare
+- **Buffer-accurate blame**: annotations (current line, gutter, hover,
+  CodeLens) now work on unsaved buffers via `git blame --contents`.
+  Inserted/edited lines show as uncommitted, shifted lines keep their
+  true attribution, and results are cached by content hash. This lifts
+  the v1.1.0 "dirty buffers show no annotations" limitation.
+- **Search & Compare view** in the GitNexus container:
+  `gitnexus.searchCommits` runs qualifier searches
+  (`author:`, `message:`, `file:`, `after:`/`before:`) and pickaxe
+  searches (`code:text`) into the view; `gitnexus.compareRefs` compares
+  two refs — commits in target-not-in-base, commits in base-not-in-
+  target, and changed files (merge-base diff). Result commits support
+  the usual checkout / create-branch / copy-hash actions.
+
+### Changed
+- The palette "Search Commits" command now presents results in the
+  Search & Compare view instead of a plain text document.
+
 ## [1.2.0] — 2026-10-21
 
 ### Added — Phase 7: sidebar views (GitNexus activity-bar container)

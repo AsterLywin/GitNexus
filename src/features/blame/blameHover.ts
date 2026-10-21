@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { BlameCache } from "./blameCache";
 import { BlameService } from "./blameService";
+import { blameForDocument } from "./documentBlame";
 import { formatRelativeTime } from "./format";
 
 /**
@@ -19,7 +20,7 @@ export class BlameHoverProvider implements vscode.HoverProvider {
     position: vscode.Position,
     token: vscode.CancellationToken
   ): Promise<vscode.Hover | undefined> {
-    if (document.uri.scheme !== "file" || document.isDirty) return undefined;
+    if (document.uri.scheme !== "file") return undefined;
     if (!vscode.workspace.getConfiguration("gitnexus").get<boolean>("blame.hover.enabled", true)) {
       return undefined;
     }
@@ -28,7 +29,7 @@ export class BlameHoverProvider implements vscode.HoverProvider {
 
     let lines;
     try {
-      lines = await this.cache.get(target.root, target.relativePath);
+      lines = await blameForDocument(this.cache, target, document);
     } catch {
       return undefined;
     }
