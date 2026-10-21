@@ -3,7 +3,7 @@
 **Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit + all five phases (build clean, 41/41 tests pass, VSIX 1.0.0 packaged)
 **Reference specs:** [GIT_ENGINE_SPEC.md](./GIT_ENGINE_SPEC.md) · [REPOSITORY_STATE_MODEL.md](./REPOSITORY_STATE_MODEL.md)
 
-## Status: v3.1.0 (2026-10-21) — v2.0.0 completed the roadmap; Phase 13 closed the GitLens Pro gap; Phase 14 was the UI polish pass (graph v2, graphical settings, Launchpad cards, grouped blame). Unscheduled future ideas: per-commit file blame timeline, visual rebase editor, cloud workspace sync.
+## Status: v3.2.0 (2026-10-21) — v2.0.0 completed the roadmap; Phase 13 closed the GitLens Pro gap; Phase 14 was the UI polish pass; Phase 15 rebuilt the graph's look to GitLens level (generated avatars, colored lanes, ref pills, two-line rows, Working Changes bar). Unscheduled future ideas: per-commit file blame timeline, visual rebase editor, cloud workspace sync.
 
 | Area | Done | State |
 | --- | --- | --- |
@@ -271,6 +271,19 @@ stash/compare polish. Marketplace publication stays the user's step.
       live text filter, All / PRs / Issues segmented filter.
 - [x] **Grouped gutter blame**: annotation text only on the first
       line of a same-commit run.
+
+---
+
+## Phase 15 — GitLens-look graph → v3.2.0
+
+- [x] **Generated initial avatars** (deterministic author colors) in
+      graph rows, hover card and details pane.
+- [x] **Colored lanes** + **ref pills** (head/branch/remote/tag/pr)
+      and **two-line rows** (subject; pills + hash + relative time).
+- [x] **Working Changes bar** above the graph (count badge, file
+      list, SCM shortcut).
+- [x] **Richer sidebar** commit descriptions (author · relative
+      time · short hash).
 
 ---
 

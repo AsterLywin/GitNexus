@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import { CommitSummary } from "../../domain/git";
 import { RepositoryStateStore } from "../../state/repositoryStateStore";
 import { assembleAutolinkRules, AutolinkRule, linkifyMarkdown } from "../commit/autolinks";
+import { formatRelativeTime } from "../graph/graphStyle";
 import { commitNodes } from "./models";
 import { SnapshotTreeProvider, placeholderItem } from "./snapshotTree";
 
@@ -12,7 +13,8 @@ export class CommitTreeItem extends vscode.TreeItem {
     autolinkRules: AutolinkRule[] = []
   ) {
     super(commit.subject || commit.id.slice(0, 8), vscode.TreeItemCollapsibleState.None);
-    this.description = `${commit.authorName} · ${commit.id.slice(0, 8)}`;
+    const relative = formatRelativeTime(commit.authorTimestamp);
+    this.description = `${commit.authorName} · ${relative ? relative + " · " : ""}${commit.id.slice(0, 8)}`;
     this.tooltip = new vscode.MarkdownString(
       `**${linkifyMarkdown(commit.subject, autolinkRules)}**\n\n${commit.authorName} &lt;${commit.authorEmail}&gt;\n\n${new Date(commit.authorTimestamp * 1000).toLocaleString()} · \`${commit.id}\``
     );

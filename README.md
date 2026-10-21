@@ -12,11 +12,13 @@ layer (GitHub adapter included), and an AI context engine.
 ## Features
 
 - **Commit graph** — virtualized rendering (bounded DOM at any history
-  size), ref and PR decorations, search with next/previous match, hover
-  cards, a right-click context menu, an in-panel commit details pane,
-  adjustable columns and row density, an All refs / Current branch
-  scope filter, and per-commit actions: checkout, create branch/tag,
-  copy hash, open on remote, add to AI context.
+  size) with colored lanes, generated initial avatars, ref and PR
+  pills, two-line rows with relative times, a Working Changes bar,
+  search with next/previous match, hover cards, a right-click context
+  menu, an in-panel commit details pane, adjustable columns and row
+  density, an All refs / Current branch scope filter, and per-commit
+  actions: checkout, create branch/tag, copy hash, open on remote,
+  add to AI context.
 - **Graphical settings** — a full settings page (Commits view gear, or
   "GitNexus: Open Settings") for blame, graph, AI keys, autolinks and
   provider hosts; no JSON editing required.

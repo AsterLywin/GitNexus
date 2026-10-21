@@ -33,7 +33,7 @@ test("graph renderer draws avatar/author/date/hash columns only when enabled", (
     commit: undefined,
     parents: []
   } as never;
-  const window: RenderWindow = { startRow: 0, endRow: 1, nodes: [node], edges: [] };
+  const window: RenderWindow = { startRow: 0, endRow: 1, nodes: [node], edges: [], maxLane: 0 };
   const renderer = new GraphVirtualRenderer();
 
   const bare = renderer.render(window, undefined, {});
@@ -41,7 +41,10 @@ test("graph renderer draws avatar/author/date/hash columns only when enabled", (
   assert.ok(!bare.includes("Ada Lovelace"));
 
   const full = renderer.render(window, undefined, { avatar: true, author: true, date: true, hash: true });
-  assert.ok(full.includes("gravatar.com/avatar/"));
+  // Phase 15: avatars are generated initials (deterministic author
+  // color), not external Gravatar images.
+  assert.ok(full.includes(">AL<"), "initial avatar renders");
+  assert.ok(!full.includes("gravatar.com"), "no external avatar image");
   assert.ok(full.includes("Ada Lovelace"));
   assert.ok(full.includes(new Date(1760000000 * 1000).toISOString().slice(0, 10)));
   assert.ok(full.includes("abcdef1"));

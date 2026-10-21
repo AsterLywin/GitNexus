@@ -9,7 +9,7 @@ import {
   renderGraphWindowSvg
 } from "./graphRenderer";
 import { GraphDecoration } from "./refDecorations";
-import { gravatarUrl } from "./avatar";
+import { authorColor, authorInitials } from "./graphStyle";
 
 export type CommitAction =
   | "checkout" | "createBranch" | "createTag" | "copyHash" | "aiContext"
@@ -27,9 +27,16 @@ export interface GraphCommitDetails {
   body?: string;
   authorName: string;
   authorEmail: string;
-  avatarUrl?: string;
+  initials: string;
+  color: string;
   dateIso: string;
   parents: string[];
+  files: Array<{ status: string; path: string }>;
+}
+
+/** Uncommitted-changes summary pinned above the graph (GitLens-style). */
+export interface WorkingChangesInfo {
+  count: number;
   files: Array<{ status: string; path: string }>;
 }
 
@@ -44,6 +51,8 @@ export interface GraphPanelHandlers {
   onBranchFilter?: (mode: string) => void;
   /** Invoked by the toolbar gear button. */
   onOpenSettings?: () => void;
+  /** Invoked from the Working Changes bar (opens the SCM view). */
+  onOpenScm?: () => void;
 }
 
 const WINDOW_ROWS = 240;
@@ -64,13 +73,15 @@ interface NodeLite {
   id: string;
   subject: string;
   author: string;
-  avatarUrl?: string;
+  initials: string;
+  color: string;
   date: string;
   refs?: string[];
 }
 
 function rowHeightForDensity(density: string | undefined): number {
-  return density === "compact" ? 30 : GRAPH_ROW_HEIGHT;
+  // Comfortable rows are two-line (subject + pills/meta); compact is one line.
+  return density === "compact" ? 30 : 54;
 }
 
 /**
@@ -91,11 +102,12 @@ export class InteractiveGraphPanel {
     notice?: string,
     repos: GraphRepoOption[] = [],
     currentRoot?: string,
-    branchMode = "all"
+    branchMode = "all",
+    workingChanges?: WorkingChangesInfo
   ): void {
     if (this.current) {
       this.current.panel.reveal(vscode.ViewColumn.One);
-      this.current.setGraph(graph, decorations, handlers, notice, repos, currentRoot, branchMode);
+      this.current.setGraph(graph, decorations, handlers, notice, repos, currentRoot, branchMode, workingChanges);
       return;
     }
     const panel = vscode.window.createWebviewPanel(
@@ -109,7 +121,7 @@ export class InteractiveGraphPanel {
     panel.onDidDispose(() => {
       if (this.current === instance) this.current = undefined;
     }, null, context.subscriptions);
-    instance.setGraph(graph, decorations, handlers, notice, repos, currentRoot, branchMode);
+    instance.setGraph(graph, decorations, handlers, notice, repos, currentRoot, branchMode, workingChanges);
   }
 
   /** Push commit details into the open panel's details pane. */
@@ -150,6 +162,7 @@ export class InteractiveGraphPanel {
   private currentRoot: string | undefined;
   private branchMode = "all";
   private density = "comfortable";
+  private workingChanges: WorkingChangesInfo | undefined;
 
   private constructor(
     private readonly panel: vscode.WebviewPanel,
@@ -177,13 +190,15 @@ export class InteractiveGraphPanel {
     notice?: string,
     repos: GraphRepoOption[] = [],
     currentRoot?: string,
-    branchMode = "all"
+    branchMode = "all",
+    workingChanges?: WorkingChangesInfo
   ): void {
     this.handlers = handlers;
     this.notice = notice;
     this.repos = repos;
     this.currentRoot = currentRoot;
     this.branchMode = branchMode;
+    this.workingChanges = workingChanges;
     this.density = vscode.workspace.getConfiguration("gitnexus").get<string>("graph.density", "comfortable");
     this.model = createRenderModel(graph, GRAPH_ROW_HEIGHT, GRAPH_LANE_WIDTH, decorations);
     this.navigator = new GraphNavigator(this.model.nodes);
@@ -250,6 +265,9 @@ export class InteractiveGraphPanel {
       case "openSettings":
         this.handlers.onOpenSettings?.();
         break;
+      case "openScm":
+        this.handlers.onOpenScm?.();
+        break;
     }
   }
 
@@ -284,7 +302,8 @@ export class InteractiveGraphPanel {
       id: node.id,
       subject: node.label,
       author: node.author,
-      avatarUrl: gravatarUrl(node.authorEmail, 40),
+      initials: authorInitials(node.author, node.authorEmail),
+      color: authorColor(node.authorEmail || node.author),
       date: node.authorTimestamp > 0
         ? new Date(node.authorTimestamp * 1000).toISOString().slice(0, 10)
         : "",
@@ -310,6 +329,20 @@ export class InteractiveGraphPanel {
           `<option value="${escapeHtml(repo.root)}"${repo.root === this.currentRoot ? " selected" : ""}>${escapeHtml(repo.name)}</option>`).join("")}</select>`
       : "";
     const checked = (key: string, fallback: boolean) => (config.get<boolean>(key, fallback) ? " checked" : "");
+    const wc = this.workingChanges;
+    const wcBar = wc && wc.count > 0
+      ? `<div class="wcbar" id="wcbar">
+  <div class="wcbar-head" id="wcHead">
+    <span class="wc-dot"></span><strong>Working Changes</strong>
+    <span class="wc-badge">+${wc.count}</span>
+    <span style="flex:1"></span>
+    <button id="wcOpen" class="secondary">Open Changes</button>
+  </div>
+  <div class="wc-files">${wc.files.map(f =>
+    `<div class="wc-file"><span class="d-status">${escapeHtml(f.status)}</span><span>${escapeHtml(f.path)}</span></div>`).join("")}
+  </div>
+</div>`
+      : "";
     return `<!doctype html>
 <html>
 <head>
@@ -317,21 +350,32 @@ export class InteractiveGraphPanel {
 <meta http-equiv="Content-Security-Policy"
   content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src https://www.gravatar.com">
 <style>
-body { margin:0; overflow:hidden; font-family:var(--vscode-font-family);
+body { margin:0; overflow:hidden; font-family:var(--vscode-font-family); height:100vh;
+  display:flex; flex-direction:column;
   color:var(--vscode-foreground); background:var(--vscode-editor-background); }
-.toolbar { min-height:44px; display:flex; align-items:center; gap:8px; padding:4px 12px; flex-wrap:wrap;
+.toolbar { min-height:44px; display:flex; align-items:center; gap:8px; padding:4px 12px; flex-wrap:wrap; flex:none;
   background:var(--vscode-sideBar-background); border-bottom:1px solid var(--vscode-panel-border); }
 .notice { width:100%; color:var(--vscode-editorWarning-foreground); font-size:12px; }
-.main { display:flex; height:calc(100vh - 53px); }
+.wcbar { flex:none; border-bottom:1px solid var(--vscode-panel-border); background:var(--vscode-editor-background); }
+.wcbar-head { display:flex; align-items:center; gap:10px; padding:8px 12px; cursor:pointer; }
+.wcbar-head:hover { background:var(--vscode-list-hoverBackground); }
+.wc-dot { width:11px; height:11px; border-radius:50%; border:2px solid var(--vscode-charts-yellow); flex:none; }
+.wc-badge { background:var(--vscode-badge-background); color:var(--vscode-badge-foreground);
+  border-radius:9px; padding:1px 8px; font-size:11.5px; font-weight:600; }
+.wc-files { display:none; padding:2px 12px 10px 34px; }
+.wcbar.open .wc-files { display:block; }
+.wc-file { display:flex; gap:8px; font-size:12.5px; padding:2px 0; }
+.wc-file .d-status { font-weight:700; width:14px; }
+.main { display:flex; flex:1; min-height:0; }
 .viewport { flex:1; overflow:auto; position:relative; }
 .spacer { position:relative; width:100%; }
 .layer { position:absolute; left:0; width:100%; }
 .commit-node { cursor:pointer; }
-.commit-node circle { fill:var(--vscode-textLink-foreground); stroke:var(--vscode-editor-background); stroke-width:2; }
-.commit-node text { fill:var(--vscode-foreground); font-size:12px; }
+.commit-node text { fill:var(--vscode-foreground); font-size:12.5px; }
 text.meta { fill:var(--vscode-descriptionForeground); font-size:11px; }
-.commit-node[data-selected="true"] circle { stroke:var(--vscode-editor-foreground); stroke-width:3; }
-.graph-layer path { fill:none; stroke:var(--vscode-textLink-foreground); stroke-width:2; opacity:.6; }
+.graph-layer path { fill:none; stroke-width:2; opacity:.85; }
+.avatar-dot { display:inline-flex; align-items:center; justify-content:center; border-radius:50%;
+  color:#fff; font-weight:700; flex:none; }
 button, input, select { color:var(--vscode-input-foreground); background:var(--vscode-input-background);
   border:1px solid var(--vscode-input-border); padding:5px 8px; }
 button { cursor:pointer; }
@@ -349,7 +393,7 @@ input { width:240px; }
   background:var(--vscode-editorHoverWidget-background); border:1px solid var(--vscode-editorHoverWidget-border);
   border-radius:6px; padding:10px 12px; box-shadow:0 4px 16px rgba(0,0,0,.35); }
 #hoverCard .hc-head { display:flex; gap:8px; align-items:center; }
-#hoverCard img { width:28px; height:28px; border-radius:50%; }
+#hoverCard .avatar-dot { width:28px; height:28px; font-size:11px; }
 #hoverCard .hc-subject { font-weight:600; margin:6px 0 2px; }
 #hoverCard .hc-meta { opacity:.75; font-size:12px; }
 #hoverCard .hc-refs { margin-top:4px; font-size:12px; color:var(--vscode-textLink-foreground); }
@@ -369,7 +413,7 @@ input { width:240px; }
 #details .d-body { white-space:pre-wrap; font-size:12.5px; opacity:.9; }
 #details .d-file { display:flex; gap:8px; font-size:12.5px; padding:3px 0; }
 #details .d-status { font-weight:700; width:14px; }
-#details img { width:32px; height:32px; border-radius:50%; vertical-align:middle; margin-right:8px; }
+#details .avatar-dot { width:32px; height:32px; font-size:12px; vertical-align:middle; margin-right:8px; }
 </style>
 </head>
 <body>
@@ -398,6 +442,7 @@ ${repoSelect}
 <button id="settingsBtn" title="GitNexus settings">⚙</button>
 ${notice}
 </div>
+${wcBar}
 <div class="main">
 <div id="viewport" class="viewport">
   <div class="spacer" style="height:${totalHeight}px"><div id="layer" class="layer"></div></div>
@@ -460,7 +505,7 @@ layer.addEventListener("mousemove", e => {
   const d = nodeData.get(node.dataset.id);
   if (!d) { hoverCard.style.display = "none"; return; }
   hoverCard.innerHTML =
-    '<div class="hc-head">' + (d.avatarUrl ? '<img src="' + d.avatarUrl + '">' : "") +
+    '<div class="hc-head"><span class="avatar-dot" style="background:' + d.color + '">' + esc(d.initials) + "</span>" +
     "<div><div>" + esc(d.author) + '</div><div class="hc-meta">' + esc(d.date) + " · " + esc(d.id.slice(0, 10)) + "</div></div></div>" +
     '<div class="hc-subject">' + esc(d.subject) + "</div>" +
     (d.refs && d.refs.length ? '<div class="hc-refs">● ' + esc(d.refs.join(" · ")) + "</div>" : "");
@@ -504,6 +549,13 @@ actions.querySelectorAll("button").forEach(b => {
 detailsInner.addEventListener("click", e => {
   if (e.target.id === "openDiffBtn") vscode.postMessage({ type: "commitAction", action: "showDiff" });
 });
+const wcHead = document.getElementById("wcHead");
+if (wcHead) wcHead.addEventListener("click", e => {
+  if (e.target.id === "wcOpen") return;
+  document.getElementById("wcbar").classList.toggle("open");
+});
+const wcOpen = document.getElementById("wcOpen");
+if (wcOpen) wcOpen.onclick = e => { e.stopPropagation(); vscode.postMessage({ type: "openScm" }); };
 
 viewport.addEventListener("scroll", () => {
   if (ticking) return;
@@ -540,7 +592,7 @@ window.addEventListener("message", event => {
     const d = m.details;
     details.classList.add("open");
     detailsInner.innerHTML =
-      "<h3>" + (d.avatarUrl ? '<img src="' + d.avatarUrl + '">' : "") + esc(d.subject) + "</h3>" +
+      "<h3>" + '<span class="avatar-dot" style="background:' + d.color + '">' + esc(d.initials) + "</span>" + esc(d.subject) + "</h3>" +
       '<div class="d-meta">' + esc(d.authorName) + " &lt;" + esc(d.authorEmail) + "&gt;<br>" +
       esc(d.dateIso) + " · " + esc(d.id.slice(0, 12)) + "</div>" +
       (d.body ? '<div class="d-body">' + esc(d.body) + "</div>" : "") +

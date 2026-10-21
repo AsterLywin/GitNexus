@@ -21,6 +21,8 @@ export interface GraphRenderNode extends GraphNode {
   authorTimestamp: number;
   /** Ref label texts decorating this commit (branches, remotes, tags), if any. */
   refs?: string[];
+  /** Ref labels with their kind, for pill rendering in the graph. */
+  refLabels?: Array<{ text: string; kind: string }>;
 }
 
 /**
@@ -41,6 +43,8 @@ export interface RenderWindow {
   endRow: number;
   nodes: GraphRenderNode[];
   edges: GraphRenderEdge[];
+  /** Widest lane in the whole model, so text can start after the lanes area. */
+  maxLane: number;
 }
 
 export function createRenderModel(
@@ -49,12 +53,9 @@ export function createRenderModel(
   laneWidth = 28,
   decorations: GraphDecoration[] = []
 ): { nodes: GraphRenderNode[]; edges: GraphRenderEdge[] } {
-  const refsByCommit = new Map<string, string[]>();
+  const refsByCommit = new Map<string, Array<{ text: string; kind: string }>>();
   for (const decoration of decorations) {
-    refsByCommit.set(
-      decoration.commitId,
-      decoration.labels.map(label => label.text)
-    );
+    refsByCommit.set(decoration.commitId, [...decoration.labels]);
   }
 
   const nodes: GraphRenderNode[] = graph.nodes.map((node, index) => ({
@@ -66,7 +67,8 @@ export function createRenderModel(
     author: node.commit?.authorName ?? "",
     authorEmail: node.commit?.authorEmail ?? "",
     authorTimestamp: node.commit?.authorTimestamp ?? 0,
-    refs: refsByCommit.get(node.id)
+    refs: refsByCommit.get(node.id)?.map(label => label.text),
+    refLabels: refsByCommit.get(node.id)
   }));
 
   const byId = new Map(nodes.map(n => [n.id, n]));
@@ -104,5 +106,6 @@ export function getRenderWindow(
     visibleIds.has(edge.from.id) || visibleIds.has(edge.to.id)
   );
 
-  return { startRow: start, endRow: end, nodes, edges };
+  const maxLane = model.nodes.reduce((max, n) => Math.max(max, n.lane ?? 0), 0);
+  return { startRow: start, endRow: end, nodes, edges, maxLane };
 }

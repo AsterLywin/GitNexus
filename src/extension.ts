@@ -9,7 +9,7 @@ import { RepositoryManager } from "./app/repositoryManager";
 import { CommandRegistry } from "./app/commandRegistry";
 import { GraphService } from "./features/graph/graphService";
 import { InteractiveGraphPanel } from "./features/graph/graphPanel";
-import { gravatarUrl } from "./features/graph/avatar";
+import { authorColor, authorInitials } from "./features/graph/graphStyle";
 import { CommitDetailsService } from "./features/commit/commitDetailsService";
 import { BlameService } from "./features/blame/blameService";
 import { BlameCodeLensProvider } from "./features/blame/blameCodeLens";
@@ -241,6 +241,21 @@ export function activate(context: vscode.ExtensionContext): void {
           }
         }
       } catch { /* PR layer is best-effort decoration */ }
+      // Working-changes summary for the pinned bar above the graph.
+      let workingChanges: { count: number; files: Array<{ status: string; path: string }> } | undefined;
+      try {
+        const status = await git.status(root);
+        if (!status.isClean) {
+          workingChanges = {
+            count: status.entries.length,
+            files: status.entries.slice(0, 50).map(entry => ({
+              status: entry.worktreeStatus !== "." ? entry.worktreeStatus
+                : entry.indexStatus !== "." ? entry.indexStatus : "?",
+              path: entry.path
+            }))
+          };
+        }
+      } catch { /* the bar is best-effort decoration */ }
       const snapshot = store.get(root);
       const notices = snapshot?.domains?.derived.notices ?? [];
       const notice = notices.includes("shallow-clone")
@@ -266,7 +281,8 @@ export function activate(context: vscode.ExtensionContext): void {
               body: details.commit.body,
               authorName: details.commit.authorName,
               authorEmail: details.commit.authorEmail,
-              avatarUrl: gravatarUrl(details.commit.authorEmail, 64),
+              initials: authorInitials(details.commit.authorName, details.commit.authorEmail),
+              color: authorColor(details.commit.authorEmail || details.commit.authorName),
               dateIso: details.commit.authorTimestamp > 0
                 ? new Date(details.commit.authorTimestamp * 1000).toISOString().slice(0, 16).replace("T", " ")
                 : "",
@@ -341,8 +357,9 @@ export function activate(context: vscode.ExtensionContext): void {
           graphBranchModes.set(root, mode);
           void openGraphForRoot(root);
         },
-        onOpenSettings: () => { void vscode.commands.executeCommand("gitnexus.openSettings"); }
-      }, notice, repoOptionsFor(root), root, branchMode);
+        onOpenSettings: () => { void vscode.commands.executeCommand("gitnexus.openSettings"); },
+        onOpenScm: () => { void vscode.commands.executeCommand("workbench.view.scm"); }
+      }, notice, repoOptionsFor(root), root, branchMode, workingChanges);
     } catch (error) {
       showError(error);
     }

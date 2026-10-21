@@ -3,6 +3,24 @@
 All notable changes to GitNexus are documented here.
 Format follows Keep a Changelog; versions follow SemVer once 1.0 ships.
 
+## [3.2.0] — 2026-10-21 — GitLens-look graph release
+
+### Added — Phase 15: rich graph rows, generated avatars, Working Changes bar
+- **Generated initial avatars**: every commit now shows a colored
+  initial avatar (deterministic color per author) in the graph, the
+  hover card and the details pane — no Gravatar dependency.
+- **Colored lanes**: each graph lane gets its own color from a stable
+  palette; edges and commit markers follow the lane color.
+- **Ref pills**: branch / remote / tag / HEAD / PR decorations render
+  as rounded colored chips on the commit's second line.
+- **Two-line rows** at comfortable density (54px): subject, then pills
+  + short hash + relative time ("5h ago"); text starts after the lanes
+  area instead of indenting per lane. Compact density stays one line.
+- **Working Changes bar** pinned above the graph: changed-file count
+  badge, expandable file list, and a shortcut to the SCM view.
+- **Richer sidebar**: commit items now show author · relative time ·
+  short hash.
+
 ## [3.1.0] — 2026-10-21 — UI polish release (near-10/10 design pass)
 
 ### Added — Phase 14: graph v2, graphical settings, Launchpad cards
