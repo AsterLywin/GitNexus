@@ -16,7 +16,6 @@ import { BlameCache } from "./features/blame/blameCache";
 import { CurrentLineBlameController } from "./features/blame/currentLineBlame";
 import { BlameGutterController } from "./features/blame/blameGutter";
 import { BlameHoverProvider } from "./features/blame/blameHover";
-import { FileHistoryService } from "./features/history/fileHistoryService";
 import { CompareService } from "./features/compare/compareService";
 import { RefService } from "./git/refService";
 import { buildRefDecorations } from "./features/graph/refDecorations";
@@ -43,7 +42,8 @@ import { WorktreePanel, WorktreeTreeItem } from "./features/worktree/worktreePan
 import { CommitsViewProvider, CommitTreeItem } from "./features/explorer/commitsView";
 import { BranchesViewProvider, BranchTreeItem, TagsViewProvider, TagTreeItem, RemotesViewProvider, RemoteTreeItem } from "./features/explorer/refsViews";
 import { StashesViewProvider, StashTreeItem, ContributorsViewProvider } from "./features/explorer/stashContributorsViews";
-import { SearchCompareViewProvider } from "./features/explorer/searchCompareView";
+import { CompareFileItem, SearchCompareViewProvider } from "./features/explorer/searchCompareView";
+import { resolveBlameTarget } from "./features/blame/blameCache";
 import { DiffService } from "./features/diff/diffService";
 import { buildCommitMessagePrompt, buildExplainCommitPrompt } from "./features/ai/prompts";
 import { askModel, pickChatModel } from "./features/ai/lmChat";
@@ -84,7 +84,6 @@ export function activate(context: vscode.ExtensionContext): void {
   const graph = new GraphService(git);
   const commitDetails = new CommitDetailsService(executor, timeoutMs);
   const blame = new BlameService(executor, timeoutMs);
-  const fileHistory = new FileHistoryService(executor, timeoutMs);
   const compare = new CompareService(executor, timeoutMs);
   const refs = new RefService(executor, timeoutMs);
   const search = new CommitSearchService(executor, timeoutMs);
@@ -206,10 +205,17 @@ export function activate(context: vscode.ExtensionContext): void {
   void worktreePanel.refresh();
   const commands = new CommandRegistry();
 
-  commands.register("gitnexus.openGraph", async () => {
+  const repoOptionsFor = (currentRoot: string): Array<{ root: string; name: string }> => {
+    const nameOf = (p: string) => p.split(/[\\/]/).filter(Boolean).pop() ?? p;
+    const options = store.all().map(s => ({ root: s.identity.rootUri, name: nameOf(s.identity.rootUri) }));
+    if (!options.some(o => o.root === currentRoot)) {
+      options.unshift({ root: currentRoot, name: nameOf(currentRoot) });
+    }
+    return options;
+  };
+
+  const openGraphForRoot = async (root: string): Promise<void> => {
     try {
-      const root = await resolveWorkspacePath();
-      if (!root) return;
       const data = await graph.build(root, 500);
       const refSnapshot = await refs.list(root);
       const decorations = buildRefDecorations(data, refSnapshot);
@@ -286,11 +292,17 @@ export function activate(context: vscode.ExtensionContext): void {
           } catch (error) {
             showError(error);
           }
-        }
-      }, notice);
+        },
+        onSwitchRepo: nextRoot => { void openGraphForRoot(nextRoot); }
+      }, notice, repoOptionsFor(root), root);
     } catch (error) {
       showError(error);
     }
+  };
+
+  commands.register("gitnexus.openGraph", async () => {
+    const root = await resolveWorkspacePath();
+    if (root) await openGraphForRoot(root);
   });
 
   commands.register("gitnexus.refreshRepository", async () => {
@@ -538,6 +550,48 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!InteractiveGraphPanel.reveal(commitId)) {
         void vscode.window.showInformationMessage("GitNexus: that commit is beyond the loaded graph history (500 commits).");
       }
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.fileHistory", async (uri?: vscode.Uri) => {
+    try {
+      const target = uri ?? vscode.window.activeTextEditor?.document.uri;
+      if (!target || target.scheme !== "file") {
+        void vscode.window.showInformationMessage("GitNexus: open a file to see its history.");
+        return;
+      }
+      const resolved = resolveBlameTarget(store, target.fsPath);
+      if (!resolved) {
+        void vscode.window.showInformationMessage("GitNexus: that file is not inside a known repository.");
+        return;
+      }
+      const commits = await git.log(resolved.root, 200, { path: resolved.relativePath, follow: true });
+      searchCompareView.setSearch(resolved.root, `file: ${resolved.relativePath}`, commits);
+      await vscode.commands.executeCommand("gitnexus.searchCompare.focus");
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.stashShowItem", async (item?: StashTreeItem) => {
+    try {
+      if (!item) return;
+      const patch = await stash.show(item.root, item.entry.ref);
+      const document = await vscode.workspace.openTextDocument({
+        language: "diff",
+        content: patch || `(${item.entry.ref} has no file changes)`
+      });
+      await vscode.window.showTextDocument(document, { preview: false });
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.compareFileDiff", async (item?: CompareFileItem) => {
+    try {
+      if (!item) return;
+      const result = await diffs.diff(item.root, [`${item.base}...${item.target}`, "--", item.file.path]);
+      const document = await vscode.workspace.openTextDocument({
+        language: "diff",
+        content: result.rawPatch || `No changes to ${item.file.path} between ${item.base} and ${item.target}.`
+      });
+      await vscode.window.showTextDocument(document, { preview: false });
     } catch (error) { showError(error); }
   });
 
@@ -905,24 +959,6 @@ export function activate(context: vscode.ExtensionContext): void {
       const document = await vscode.workspace.openTextDocument({
         language: "diff",
         content: details.diff || `${details.commit.subject}\n`
-      });
-      await vscode.window.showTextDocument(document, { preview: false });
-    } catch (error) {
-      showError(error);
-    }
-  });
-
-  commands.register("gitnexus.fileHistory", async () => {
-    try {
-      const editor = vscode.window.activeTextEditor;
-      if (!editor) return;
-      const root = vscode.workspace.getWorkspaceFolder(editor.document.uri)?.uri.fsPath;
-      if (!root) return;
-      const history = await fileHistory.history(root, editor.document.uri.fsPath, 100);
-      const lines = history.map(c => `${c.id.slice(0, 8)}  ${c.authorName}  ${c.subject}`);
-      const document = await vscode.workspace.openTextDocument({
-        language: "text",
-        content: lines.join("\n")
       });
       await vscode.window.showTextDocument(document, { preview: false });
     } catch (error) {

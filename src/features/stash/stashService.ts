@@ -13,6 +13,12 @@ export class StashService {
     });
   }
 
+  /** Full patch of a stash entry (`git stash show -p`). */
+  async show(root: string, ref: string): Promise<string> {
+    const result = await this.executor.exec(["stash", "show", "-p", ref], { cwd: root, timeoutMs: this.timeoutMs });
+    return result.stdout;
+  }
+
   async push(root: string, message?: string, includeUntracked = false): Promise<void> {
     await this.executor.exec(["stash", "push", ...(includeUntracked ? ["--include-untracked"] : []), ...(message ? ["-m", message] : [])], { cwd: root, timeoutMs: this.timeoutMs });
   }

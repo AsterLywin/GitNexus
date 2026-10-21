@@ -24,8 +24,9 @@ layer (GitHub adapter included), and an AI context engine.
   all accurate on unsaved buffers too (`git blame --contents`).
 - **Sidebar views** — a GitNexus activity-bar container with Commits,
   Branches, Tags, Stashes, Remotes, Contributors, Worktrees and a
-  Search & Compare view (qualifier + pickaxe search, two-ref compare),
-  with checkout / create / delete / stash / fetch actions in context.
+  Search & Compare view (qualifier + pickaxe search, two-ref compare,
+  per-file history), with checkout / create / delete / stash / fetch
+  actions in context.
 - **Source control** — staged/unstaged groups, stage/unstage/discard,
   commit, file badges and Git theme colors, rename-aware tooltips.
 - **Branches, tags, remotes, stash** — full CRUD plus fetch/pull/push

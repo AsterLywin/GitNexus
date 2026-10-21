@@ -3,6 +3,23 @@
 All notable changes to GitNexus are documented here.
 Format follows Keep a Changelog; versions follow SemVer once 1.0 ships.
 
+## [2.0.0] — 2026-10-21 — PROJECT COMPLETE
+
+The full roadmap is delivered: the original engine/state/features
+specs (v1.0) plus the complete GitLens-parity track (Phases 6–12).
+71 tests, 68 commands, three PR providers, buffer-accurate blame,
+and platform-model AI features.
+
+### Added — Phase 12: file history, graph repo switcher, polish
+- **File history**: "Show File History" (editor + Explorer context
+  menus) lists a file's commits — following renames — in the
+  Search & Compare view, replacing the old text-dump command.
+- **Graph repository switcher**: multi-repo workspaces get a repo
+  picker in the graph toolbar; switching rebuilds the graph in place.
+- **Stash diff**: "Show Stash Diff" opens a stash entry's full patch.
+- **Compare file diff**: changed files in a compare result can open
+  their merge-base diff directly.
+
 ## [1.6.0] — 2026-10-21
 
 ### Added — Phase 11: deep links + provider depth

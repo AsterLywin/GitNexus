@@ -2,7 +2,7 @@
   "name": "gitnexus",
   "displayName": "GitNexus",
   "description": "Open-source, local-first Git intelligence for VS Code.",
-  "version": "1.6.0",
+  "version": "2.0.0",
   "publisher": "gitnexus",
   "license": "Apache-2.0",
   "repository": {
@@ -74,7 +74,10 @@
     "onCommand:gitnexus.explainCommit",
     "onCommand:gitnexus.setGitLabToken",
     "onCommand:gitnexus.setBitbucketCredentials",
-    "onCommand:gitnexus.revealInGraph"
+    "onCommand:gitnexus.revealInGraph",
+    "onCommand:gitnexus.fileHistory",
+    "onCommand:gitnexus.stashShowItem",
+    "onCommand:gitnexus.compareFileDiff"
   ],
   "main": "./dist/src/extension.js",
   "contributes": {
@@ -342,6 +345,14 @@
       {
         "command": "gitnexus.revealInGraph",
         "title": "GitNexus: Reveal Commit in Graph"
+      },
+      {
+        "command": "gitnexus.stashShowItem",
+        "title": "GitNexus: Show Stash Diff"
+      },
+      {
+        "command": "gitnexus.compareFileDiff",
+        "title": "GitNexus: Show File Diff for Compare"
       }
     ],
     "configuration": {
@@ -674,6 +685,16 @@
           "command": "gitnexus.revealInGraph",
           "when": "(view == gitnexus.commits || view == gitnexus.searchCompare) && viewItem == commit",
           "group": "3_graph@1"
+        },
+        {
+          "command": "gitnexus.stashShowItem",
+          "when": "view == gitnexus.stashes && viewItem == stash",
+          "group": "1_show@1"
+        },
+        {
+          "command": "gitnexus.compareFileDiff",
+          "when": "view == gitnexus.searchCompare && viewItem == compareFile",
+          "group": "1_diff@1"
         }
       ],
       "commandPalette": [
@@ -723,6 +744,11 @@
           "command": "gitnexus.blameToggle",
           "group": "1_modification",
           "when": "resourceScheme == file"
+        },
+        {
+          "command": "gitnexus.fileHistory",
+          "when": "resourceScheme == file",
+          "group": "gitnexus@1"
         }
       ],
       "scm/title": [
@@ -730,6 +756,13 @@
           "command": "gitnexus.generateCommitMessage",
           "when": "scmProvider == gitnexus",
           "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "gitnexus.fileHistory",
+          "when": "resourceScheme == file",
+          "group": "gitnexus@1"
         }
       ]
     },

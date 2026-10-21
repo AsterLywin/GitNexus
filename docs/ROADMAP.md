@@ -3,7 +3,7 @@
 **Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit + all five phases (build clean, 41/41 tests pass, VSIX 1.0.0 packaged)
 **Reference specs:** [GIT_ENGINE_SPEC.md](./GIT_ENGINE_SPEC.md) · [REPOSITORY_STATE_MODEL.md](./REPOSITORY_STATE_MODEL.md)
 
-## Where we are: v1.6.0 — GitLens-parity track: Phases 6–11 shipped (…, + deep links, GHE, CI/review enrichment)
+## Status: COMPLETE — v2.0.0 (2026-10-21). Every phase below shipped; the parity track is done. Unscheduled future ideas: per-commit file blame timeline, visual rebase editor, cloud workspace sync.
 
 | Area | Done | State |
 | --- | --- | --- |
@@ -231,6 +231,17 @@ self-hosted GitHub Enterprise base-URL support.
 in diminishing-returns territory; remaining ideas are smaller:
 worktree/repo switcher in the graph panel, per-file history view,
 stash/compare polish. Marketplace publication stays the user's step.
+
+---
+
+## Phase 12 — Completion: file history, graph repo switcher, polish → v2.0.0
+
+- [x] **File history** in the Search & Compare view (rename-following),
+      from editor and Explorer context menus.
+- [x] **Graph repository switcher** for multi-repo workspaces.
+- [x] **Stash show-diff** and **compare file diff** context actions.
+- [x] Final audit: clean-slate build + full suite (71) green, command
+      registration mechanically verified (68/68).
 
 ---
 

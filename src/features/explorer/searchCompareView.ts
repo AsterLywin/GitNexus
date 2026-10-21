@@ -35,8 +35,13 @@ class SectionItem extends vscode.TreeItem {
   }
 }
 
-class FileItem extends vscode.TreeItem {
-  constructor(root: string, file: ChangedFile) {
+export class CompareFileItem extends vscode.TreeItem {
+  constructor(
+    readonly root: string,
+    readonly base: string,
+    readonly target: string,
+    readonly file: ChangedFile
+  ) {
     super(file.path, vscode.TreeItemCollapsibleState.None);
     this.description = file.status + (file.oldPath ? ` · from ${file.oldPath}` : "");
     this.contextValue = "compareFile";
@@ -123,7 +128,7 @@ export class SearchCompareViewProvider implements vscode.TreeDataProvider<vscode
       if (element instanceof SectionItem) {
         if (element.section === "ahead") return data.ahead.map(c => new CommitTreeItem(data.root, c));
         if (element.section === "behind") return data.behind.map(c => new CommitTreeItem(data.root, c));
-        return data.files.map(file => new FileItem(data.root, file));
+        return data.files.map(file => new CompareFileItem(data.root, data.base, data.target, file));
       }
       return [];
     }

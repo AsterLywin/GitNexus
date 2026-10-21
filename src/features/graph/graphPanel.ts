@@ -12,11 +12,18 @@ import { GraphDecoration } from "./refDecorations";
 
 export type CommitAction = "checkout" | "createBranch" | "createTag" | "copyHash" | "aiContext";
 
+export interface GraphRepoOption {
+  root: string;
+  name: string;
+}
+
 export interface GraphPanelHandlers {
   onSelect: (commitId: string) => void;
   onCommitAction: (action: CommitAction, commitId: string) => void;
   /** Invoked by the [Fetch More History] button on limitation notices. */
   onFetchMore?: () => void;
+  /** Invoked when the user picks another repository in the toolbar. */
+  onSwitchRepo?: (root: string) => void;
 }
 
 const WINDOW_ROWS = 240;
@@ -27,6 +34,7 @@ interface PanelMessage {
   startRow?: number;
   query?: string;
   action?: CommitAction;
+  root?: string;
 }
 
 /**
@@ -46,11 +54,13 @@ export class InteractiveGraphPanel {
     graph: CommitGraph,
     decorations: GraphDecoration[],
     handlers: GraphPanelHandlers,
-    notice?: string
+    notice?: string,
+    repos: GraphRepoOption[] = [],
+    currentRoot?: string
   ): void {
     if (this.current) {
       this.current.panel.reveal(vscode.ViewColumn.One);
-      this.current.setGraph(graph, decorations, handlers, notice);
+      this.current.setGraph(graph, decorations, handlers, notice, repos, currentRoot);
       return;
     }
     const panel = vscode.window.createWebviewPanel(
@@ -64,7 +74,7 @@ export class InteractiveGraphPanel {
     panel.onDidDispose(() => {
       if (this.current === instance) this.current = undefined;
     }, null, context.subscriptions);
-    instance.setGraph(graph, decorations, handlers, notice);
+    instance.setGraph(graph, decorations, handlers, notice, repos, currentRoot);
   }
 
   /**
@@ -108,14 +118,21 @@ export class InteractiveGraphPanel {
     panel.onDidDispose(() => configWatch.dispose());
   }
 
+  private repos: GraphRepoOption[] = [];
+  private currentRoot: string | undefined;
+
   private setGraph(
     graph: CommitGraph,
     decorations: GraphDecoration[],
     handlers: GraphPanelHandlers,
-    notice?: string
+    notice?: string,
+    repos: GraphRepoOption[] = [],
+    currentRoot?: string
   ): void {
     this.handlers = handlers;
     this.notice = notice;
+    this.repos = repos;
+    this.currentRoot = currentRoot;
     this.model = createRenderModel(graph, GRAPH_ROW_HEIGHT, GRAPH_LANE_WIDTH, decorations);
     this.navigator = new GraphNavigator(this.model.nodes);
     this.matches = [];
@@ -161,6 +178,11 @@ export class InteractiveGraphPanel {
         break;
       case "fetchMore":
         this.handlers.onFetchMore?.();
+        break;
+      case "switchRepo":
+        if (message.root && message.root !== this.currentRoot) {
+          this.handlers.onSwitchRepo?.(message.root);
+        }
         break;
     }
   }
@@ -224,7 +246,7 @@ body { margin:0; overflow:hidden; font-family:var(--vscode-font-family);
 text.meta { fill:var(--vscode-descriptionForeground); font-size:11px; }
 .commit-node[data-selected="true"] circle { stroke:var(--vscode-editor-foreground); stroke-width:3; }
 .graph-layer path { fill:none; stroke:var(--vscode-textLink-foreground); stroke-width:2; opacity:.6; }
-button, input { color:var(--vscode-input-foreground); background:var(--vscode-input-background);
+button, input, select { color:var(--vscode-input-foreground); background:var(--vscode-input-background);
   border:1px solid var(--vscode-input-border); padding:5px 8px; }
 button { cursor:pointer; }
 input { width:240px; }
@@ -235,6 +257,7 @@ input { width:240px; }
 <body>
 <div class="toolbar">
 <strong>GitNexus Graph</strong>
+${this.repos.length > 1 ? `<select id="repoSwitch">${this.repos.map(repo => `<option value="${escapeHtml(repo.root)}"${repo.root === this.currentRoot ? " selected" : ""}>${escapeHtml(repo.name)}</option>`).join("")}</select>` : ""}
 <input id="search" placeholder="Search commits, authors, refs…">
 <button id="prevMatch" title="Previous match">↑</button>
 <button id="nextMatch" title="Next match">↓</button>
@@ -272,6 +295,8 @@ document.getElementById("search").addEventListener("input", e => {
 });
 const fetchMore = document.getElementById("fetchMore");
 if (fetchMore) fetchMore.onclick = () => vscode.postMessage({ type: "fetchMore" });
+const repoSwitch = document.getElementById("repoSwitch");
+if (repoSwitch) repoSwitch.onchange = () => vscode.postMessage({ type: "switchRepo", root: repoSwitch.value });
 document.getElementById("nextMatch").onclick = () => vscode.postMessage({ type: "nextMatch" });
 document.getElementById("prevMatch").onclick = () => vscode.postMessage({ type: "previousMatch" });
 actions.querySelectorAll("button").forEach(b => {
