@@ -2,7 +2,7 @@
   "name": "gitnexus",
   "displayName": "GitNexus",
   "description": "Open-source, local-first Git intelligence for VS Code.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "publisher": "gitnexus",
   "license": "Apache-2.0",
   "repository": {
@@ -57,7 +57,15 @@
     "onCommand:gitnexus.buildAiContext",
     "onCommand:gitnexus.copyAiContext",
     "onCommand:gitnexus.blameToggle",
-    "onCommand:gitnexus.copyHash"
+    "onCommand:gitnexus.copyHash",
+    "onView:gitnexus.commits",
+    "onView:gitnexus.branches",
+    "onView:gitnexus.tags",
+    "onView:gitnexus.stashes",
+    "onView:gitnexus.remotes",
+    "onView:gitnexus.contributors",
+    "onCommand:gitnexus.tagCreate",
+    "onCommand:gitnexus.viewsRefresh"
   ],
   "main": "./dist/src/extension.js",
   "contributes": {
@@ -253,6 +261,50 @@
       {
         "command": "gitnexus.copyHash",
         "title": "GitNexus: Copy Commit Hash"
+      },
+      {
+        "command": "gitnexus.viewsRefresh",
+        "title": "GitNexus: Refresh Views"
+      },
+      {
+        "command": "gitnexus.copyHashFor",
+        "title": "GitNexus: Copy Hash"
+      },
+      {
+        "command": "gitnexus.checkoutRef",
+        "title": "GitNexus: Checkout"
+      },
+      {
+        "command": "gitnexus.createBranchFrom",
+        "title": "GitNexus: Create Branch Here\u2026"
+      },
+      {
+        "command": "gitnexus.deleteBranchItem",
+        "title": "GitNexus: Delete Branch"
+      },
+      {
+        "command": "gitnexus.deleteTagItem",
+        "title": "GitNexus: Delete Tag"
+      },
+      {
+        "command": "gitnexus.tagCreate",
+        "title": "GitNexus: Create Tag\u2026"
+      },
+      {
+        "command": "gitnexus.stashApplyItem",
+        "title": "GitNexus: Apply Stash"
+      },
+      {
+        "command": "gitnexus.stashPopItem",
+        "title": "GitNexus: Pop Stash"
+      },
+      {
+        "command": "gitnexus.stashDropItem",
+        "title": "GitNexus: Drop Stash"
+      },
+      {
+        "command": "gitnexus.remoteFetchItem",
+        "title": "GitNexus: Fetch Remote"
       }
     ],
     "configuration": {
@@ -296,7 +348,31 @@
       }
     },
     "views": {
-      "explorer": [
+      "gitnexus": [
+        {
+          "id": "gitnexus.commits",
+          "name": "Commits"
+        },
+        {
+          "id": "gitnexus.branches",
+          "name": "Branches"
+        },
+        {
+          "id": "gitnexus.tags",
+          "name": "Tags"
+        },
+        {
+          "id": "gitnexus.stashes",
+          "name": "Stashes"
+        },
+        {
+          "id": "gitnexus.remotes",
+          "name": "Remotes"
+        },
+        {
+          "id": "gitnexus.contributors",
+          "name": "Contributors"
+        },
         {
           "id": "gitnexus.worktrees",
           "name": "GitNexus Worktrees"
@@ -319,6 +395,51 @@
           "command": "gitnexus.refreshRepository",
           "when": "view == gitnexus.worktrees",
           "group": "navigation@3"
+        },
+        {
+          "command": "gitnexus.viewsRefresh",
+          "when": "view == gitnexus.commits",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitnexus.branchCreate",
+          "when": "view == gitnexus.branches",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitnexus.viewsRefresh",
+          "when": "view == gitnexus.branches",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gitnexus.tagCreate",
+          "when": "view == gitnexus.tags",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitnexus.viewsRefresh",
+          "when": "view == gitnexus.tags",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gitnexus.stashPush",
+          "when": "view == gitnexus.stashes",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitnexus.viewsRefresh",
+          "when": "view == gitnexus.stashes",
+          "group": "navigation@2"
+        },
+        {
+          "command": "gitnexus.viewsRefresh",
+          "when": "view == gitnexus.remotes",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gitnexus.viewsRefresh",
+          "when": "view == gitnexus.contributors",
+          "group": "navigation@1"
         }
       ],
       "view/item/context": [
@@ -346,11 +467,117 @@
           "command": "gitnexus.worktreeUnlock",
           "when": "view == gitnexus.worktrees && viewItem =~ /Locked$/",
           "group": "2_edit@4"
+        },
+        {
+          "command": "gitnexus.checkoutRef",
+          "when": "view == gitnexus.commits && viewItem == commit",
+          "group": "1_checkout@1"
+        },
+        {
+          "command": "gitnexus.createBranchFrom",
+          "when": "view == gitnexus.commits && viewItem == commit",
+          "group": "1_checkout@2"
+        },
+        {
+          "command": "gitnexus.copyHashFor",
+          "when": "view == gitnexus.commits && viewItem == commit",
+          "group": "2_copy@1"
+        },
+        {
+          "command": "gitnexus.checkoutRef",
+          "when": "view == gitnexus.branches && viewItem == branchLocal",
+          "group": "1_checkout@1"
+        },
+        {
+          "command": "gitnexus.checkoutRef",
+          "when": "view == gitnexus.branches && viewItem == branchRemote",
+          "group": "1_checkout@1"
+        },
+        {
+          "command": "gitnexus.createBranchFrom",
+          "when": "view == gitnexus.branches && viewItem =~ /^branch/",
+          "group": "1_checkout@2"
+        },
+        {
+          "command": "gitnexus.deleteBranchItem",
+          "when": "view == gitnexus.branches && viewItem == branchLocal",
+          "group": "3_edit@1"
+        },
+        {
+          "command": "gitnexus.checkoutRef",
+          "when": "view == gitnexus.tags && viewItem == tag",
+          "group": "1_checkout@1"
+        },
+        {
+          "command": "gitnexus.createBranchFrom",
+          "when": "view == gitnexus.tags && viewItem == tag",
+          "group": "1_checkout@2"
+        },
+        {
+          "command": "gitnexus.deleteTagItem",
+          "when": "view == gitnexus.tags && viewItem == tag",
+          "group": "3_edit@1"
+        },
+        {
+          "command": "gitnexus.stashApplyItem",
+          "when": "view == gitnexus.stashes && viewItem == stash",
+          "group": "1_stash@1"
+        },
+        {
+          "command": "gitnexus.stashPopItem",
+          "when": "view == gitnexus.stashes && viewItem == stash",
+          "group": "1_stash@2"
+        },
+        {
+          "command": "gitnexus.stashDropItem",
+          "when": "view == gitnexus.stashes && viewItem == stash",
+          "group": "1_stash@3"
+        },
+        {
+          "command": "gitnexus.remoteFetchItem",
+          "when": "view == gitnexus.remotes && viewItem == remote",
+          "group": "1_remote@1"
         }
       ],
       "commandPalette": [
         {
           "command": "gitnexus.copyHash",
+          "when": "false"
+        },
+        {
+          "command": "gitnexus.copyHashFor",
+          "when": "false"
+        },
+        {
+          "command": "gitnexus.checkoutRef",
+          "when": "false"
+        },
+        {
+          "command": "gitnexus.createBranchFrom",
+          "when": "false"
+        },
+        {
+          "command": "gitnexus.deleteBranchItem",
+          "when": "false"
+        },
+        {
+          "command": "gitnexus.deleteTagItem",
+          "when": "false"
+        },
+        {
+          "command": "gitnexus.stashApplyItem",
+          "when": "false"
+        },
+        {
+          "command": "gitnexus.stashPopItem",
+          "when": "false"
+        },
+        {
+          "command": "gitnexus.stashDropItem",
+          "when": "false"
+        },
+        {
+          "command": "gitnexus.remoteFetchItem",
           "when": "false"
         }
       ],
@@ -359,6 +586,15 @@
           "command": "gitnexus.blameToggle",
           "group": "1_modification",
           "when": "resourceScheme == file"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "gitnexus",
+          "title": "GitNexus",
+          "icon": "media/gitnexus.svg"
         }
       ]
     }

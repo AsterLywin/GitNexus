@@ -3,7 +3,7 @@
 **Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit + all five phases (build clean, 41/41 tests pass, VSIX 1.0.0 packaged)
 **Reference specs:** [GIT_ENGINE_SPEC.md](./GIT_ENGINE_SPEC.md) · [REPOSITORY_STATE_MODEL.md](./REPOSITORY_STATE_MODEL.md)
 
-## Where we are: v1.1.0 — the original roadmap is complete; Phase 6 (post-1.0, GitLens-parity track) shipped
+## Where we are: v1.2.0 — original roadmap complete; GitLens-parity track: Phase 6 (annotations) + Phase 7 (sidebar views) shipped
 
 | Area | Done | State |
 | --- | --- | --- |
@@ -140,9 +140,27 @@ state engine — aimed at the largest perceived gap to GitLens.
 - [x] **BlameCache**: canonical-root keying, generation + file
       fingerprint invalidation.
 
-**Exit criteria:** annotations live in the editor with tests (48) green. Next
-candidates: buffer-accurate blame for dirty editors (`git blame --contents`),
-sidebar views (Commits/Contributors), GitLab/Bitbucket PR adapters.
+**Exit criteria:** annotations live in the editor with tests (48) green.
+
+---
+
+## Phase 7 — Sidebar views (GitLens parity) → v1.2.0
+
+Goal: the activity-bar surface — the second-largest perceived GitLens gap.
+
+- [x] **GitNexus container**: dedicated activity-bar entry with the
+      Worktrees view moved in from the Explorer.
+- [x] **Commits / Branches / Tags / Stashes / Remotes / Contributors**
+      views on the snapshot store (pure model builders, unit-tested);
+      Contributors reads `git shortlog` cached per generation.
+- [x] **Tree actions**: checkout (branch/tag/commit), create-branch-here,
+      delete branch/tag, stash apply/pop/drop, remote fetch — through
+      the mutation coordinator, views auto-refreshing from the store.
+
+**Exit criteria:** views live with tests (53) green. Next candidates:
+buffer-accurate blame for dirty editors (`git blame --contents`),
+commit graph polish (avatars, column config), GitLab/Bitbucket PR
+adapters, Search & Compare view.
 
 ---
 

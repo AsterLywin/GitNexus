@@ -5,6 +5,7 @@ import { GitError } from "./errors";
 import { GitProcessExecutor } from "./processExecutor";
 import { parsePorcelainV2Status } from "./parsers/statusParser";
 import { parseLog } from "./parsers/logParser";
+import { parseShortlog, ContributorSummary } from "./parsers/shortlogParser";
 import {
   GitCapabilities,
   GitVersion,
@@ -139,6 +140,15 @@ export class GitService {
       throw error;
     });
     return result ? parseLog(result.stdout) : [];
+  }
+
+  /** Author ranking for the Contributors view (`git shortlog -sne`). */
+  async contributors(root: string): Promise<ContributorSummary[]> {
+    const result = await this.executor.exec(
+      ["shortlog", "-sne", "--no-merges", "HEAD"],
+      { cwd: root, timeoutMs: this.timeoutMs }
+    ).catch(() => undefined);
+    return result ? parseShortlog(result.stdout) : [];
   }
 
   /**

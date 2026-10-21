@@ -3,6 +3,27 @@
 All notable changes to GitNexus are documented here.
 Format follows Keep a Changelog; versions follow SemVer once 1.0 ships.
 
+## [1.2.0] — 2026-10-21
+
+### Added — Phase 7: sidebar views (GitNexus activity-bar container)
+- A dedicated **GitNexus activity-bar container** with seven views:
+  **Commits** (snapshot history, click to open the commit), **Branches**
+  (Local/Remote groups, current first, upstream + ahead/behind),
+  **Tags**, **Stashes**, **Remotes**, **Contributors** (author ranking
+  from `git shortlog`), and **Worktrees** (moved from the Explorer).
+- Tree actions with the repository as context: checkout branch/tag/
+  commit, create branch at any ref, delete branch/tag, stash
+  apply/pop/drop, fetch remote — mutations route through the same
+  coordinator/journal as the palette commands, and views refresh from
+  the snapshot store automatically.
+- View-title actions: refresh, create branch/tag, stash push.
+- `GitService.contributors()` engine read + shortlog parser.
+
+### Notes
+- Views render the state engine's snapshot for the primary workspace
+  repository; they never call Git directly (Contributors caches per
+  snapshot generation).
+
 ## [1.1.0] — 2026-10-21
 
 ### Added — Phase 6: editor annotation layer (the GitLens signature)

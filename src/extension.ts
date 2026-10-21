@@ -40,6 +40,9 @@ import { STAGE_SCHEME, StageDocumentProvider } from "./features/conflicts/stageD
 import { OperationService } from "./git/operationService";
 import { TagService } from "./git/tagService";
 import { WorktreePanel, WorktreeTreeItem } from "./features/worktree/worktreePanel";
+import { CommitsViewProvider, CommitTreeItem } from "./features/explorer/commitsView";
+import { BranchesViewProvider, BranchTreeItem, TagsViewProvider, TagTreeItem, RemotesViewProvider, RemoteTreeItem } from "./features/explorer/refsViews";
+import { StashesViewProvider, StashTreeItem, ContributorsViewProvider } from "./features/explorer/stashContributorsViews";
 import { RebasePlannerPanel } from "./features/rebase/rebasePlannerPanel";
 import { RemoteService } from "./git/remoteService";
 import { GitHubPullRequestProvider } from "./features/pr/githubProvider";
@@ -130,9 +133,23 @@ export function activate(context: vscode.ExtensionContext): void {
     return undefined;
   };
   const worktreePanel = new WorktreePanel(worktrees, resolveWorkspacePath);
+  // Sidebar views (Phase 7): all render the current snapshot via the store.
+  const commitsView = new CommitsViewProvider(store, resolveWorkspacePath);
+  const branchesView = new BranchesViewProvider(store, resolveWorkspacePath);
+  const tagsView = new TagsViewProvider(store, resolveWorkspacePath);
+  const remotesView = new RemotesViewProvider(store, resolveWorkspacePath);
+  const stashesView = new StashesViewProvider(store, resolveWorkspacePath);
+  const contributorsView = new ContributorsViewProvider(store, resolveWorkspacePath, git);
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(STAGE_SCHEME, new StageDocumentProvider(conflicts)),
-    vscode.window.registerTreeDataProvider("gitnexus.worktrees", worktreePanel)
+    vscode.window.registerTreeDataProvider("gitnexus.worktrees", worktreePanel),
+    vscode.window.registerTreeDataProvider("gitnexus.commits", commitsView),
+    vscode.window.registerTreeDataProvider("gitnexus.branches", branchesView),
+    vscode.window.registerTreeDataProvider("gitnexus.tags", tagsView),
+    vscode.window.registerTreeDataProvider("gitnexus.remotes", remotesView),
+    vscode.window.registerTreeDataProvider("gitnexus.stashes", stashesView),
+    vscode.window.registerTreeDataProvider("gitnexus.contributors", contributorsView),
+    commitsView, branchesView, tagsView, remotesView, stashesView, contributorsView
   );
   void worktreePanel.refresh();
   const commands = new CommandRegistry();
@@ -877,6 +894,120 @@ export function activate(context: vscode.ExtensionContext): void {
     if (!hash) return;
     await vscode.env.clipboard.writeText(hash);
     void vscode.window.setStatusBarMessage(`GitNexus: copied ${hash.slice(0, 10)}`, 2000);
+  });
+
+  /* ------------------------- sidebar view actions ------------------------- */
+
+  commands.register("gitnexus.viewsRefresh", async () => {
+    try {
+      const root = await resolveWorkspacePath();
+      if (root) await repositories.refresh(root);
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.copyHashFor", async (item?: { commit?: { id: string }; ref?: { objectId: string } }) => {
+    const hash = item?.commit?.id ?? item?.ref?.objectId;
+    if (!hash) return;
+    await vscode.env.clipboard.writeText(hash);
+    void vscode.window.setStatusBarMessage(`GitNexus: copied ${hash.slice(0, 10)}`, 2000);
+  });
+
+  commands.register("gitnexus.checkoutRef", async (item?: BranchTreeItem | TagTreeItem | CommitTreeItem) => {
+    try {
+      if (!item) return;
+      let args: string[] | undefined;
+      if (item instanceof CommitTreeItem) {
+        args = ["switch", "--detach", item.commit.id];
+      } else if (item instanceof TagTreeItem) {
+        args = ["switch", "--detach", item.ref.shortName];
+      } else if (item instanceof BranchTreeItem) {
+        args = item.ref.kind === "remoteBranch"
+          ? ["switch", item.ref.shortName.slice(item.ref.shortName.indexOf("/") + 1)]
+          : ["switch", item.ref.shortName];
+      }
+      if (!args) return;
+      await mutation.run({ rootUri: item.root, operation: "checkout", args });
+      await repositories.refresh(item.root);
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.createBranchFrom", async (item?: BranchTreeItem | TagTreeItem | CommitTreeItem) => {
+    try {
+      if (!item) return;
+      const startPoint = item instanceof CommitTreeItem ? item.commit.id : item.ref.name;
+      const name = await vscode.window.showInputBox({ prompt: `New branch at ${startPoint.slice(0, 24)}`, placeHolder: "branch-name" });
+      if (!name?.trim()) return;
+      await mutation.run({ rootUri: item.root, operation: "branch", args: ["branch", name.trim(), startPoint] });
+      await repositories.refresh(item.root);
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.deleteBranchItem", async (item?: BranchTreeItem) => {
+    try {
+      if (!item || item.ref.isCurrent) return;
+      const confirm = await vscode.window.showWarningMessage(`Delete branch ${item.ref.shortName}?`, { modal: true }, "Delete");
+      if (confirm !== "Delete") return;
+      await mutation.run({ rootUri: item.root, operation: "branch", args: ["branch", "-d", item.ref.shortName] });
+      await repositories.refresh(item.root);
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.deleteTagItem", async (item?: TagTreeItem) => {
+    try {
+      if (!item) return;
+      const confirm = await vscode.window.showWarningMessage(`Delete tag ${item.ref.shortName}?`, { modal: true }, "Delete");
+      if (confirm !== "Delete") return;
+      await tags.delete(item.root, item.ref.shortName);
+      await repositories.refresh(item.root);
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.tagCreate", async () => {
+    try {
+      const root = await resolveWorkspacePath(); if (!root) return;
+      const name = await vscode.window.showInputBox({ prompt: "Tag name" });
+      if (!name?.trim()) return;
+      const message = await vscode.window.showInputBox({ prompt: "Tag message (optional — annotated tag)" });
+      await tags.create(root, name.trim(), "HEAD", message?.trim() || undefined);
+      await repositories.refresh(root);
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.stashApplyItem", async (item?: StashTreeItem) => {
+    try {
+      if (!item) return;
+      await stash.apply(item.root, item.entry.index);
+      await repositories.refresh(item.root);
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.stashPopItem", async (item?: StashTreeItem) => {
+    try {
+      if (!item) return;
+      await stash.pop(item.root, item.entry.index);
+      await repositories.refresh(item.root);
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.stashDropItem", async (item?: StashTreeItem) => {
+    try {
+      if (!item) return;
+      const confirm = await vscode.window.showWarningMessage(`Drop stash ${item.entry.ref}?`, { modal: true }, "Drop");
+      if (confirm !== "Drop") return;
+      await stash.drop(item.root, item.entry.index);
+      await repositories.refresh(item.root);
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.remoteFetchItem", async (item?: RemoteTreeItem) => {
+    try {
+      if (!item) return;
+      await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: `Fetching ${item.remote.name}…` },
+        async () => { await remotes.fetch(item.root, item.remote.name); }
+      );
+      await repositories.refresh(item.root);
+    } catch (error) { showError(error); }
   });
 
 for (const folder of vscode.workspace.workspaceFolders ?? []) {
