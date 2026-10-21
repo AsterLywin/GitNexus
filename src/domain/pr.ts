@@ -20,6 +20,18 @@ export interface PullRequestSummary {
   url: string;
   reviewStatus?: ReviewStatus;
   ciStatus?: CiStatus;
+  /** True when the head branch lives in a different repository (fork). */
+  fork?: boolean;
+}
+
+export interface IssueSummary {
+  id: string;
+  number: number;
+  title: string;
+  state: "open" | "closed";
+  author: string;
+  url: string;
+  labels: string[];
 }
 
 export interface PullRequestProvider {
@@ -31,4 +43,6 @@ export interface PullRequestProvider {
   forBranch(branch: string): Promise<PullRequestSummary | undefined>;
   /** Web URL that starts a new PR from head into base. */
   createUrl(baseBranch: string, headBranch: string): string;
+  /** Open issues (Launchpad); optional per provider. */
+  listIssues?(): Promise<IssueSummary[]>;
 }

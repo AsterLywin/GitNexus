@@ -1,5 +1,6 @@
 import {
   CiStatus,
+  IssueSummary,
   PullRequestProvider,
   PullRequestSummary,
   ReviewStatus
@@ -22,8 +23,32 @@ interface GitHubPr {
   merged_at?: string | null;
   html_url: string;
   user?: { login?: string };
-  head: { ref: string; sha: string };
+  head: { ref: string; sha: string; repo?: { full_name?: string } | null };
   base: { ref: string };
+}
+
+interface GitHubIssue {
+  id: number;
+  number: number;
+  title: string;
+  state: string;
+  html_url: string;
+  user?: { login?: string };
+  labels?: Array<string | { name?: string }>;
+  pull_request?: unknown;
+}
+
+/** Map a GitHub issue to the neutral summary. Pure. */
+export function mapGitHubIssue(issue: GitHubIssue): IssueSummary {
+  return {
+    id: String(issue.id),
+    number: issue.number,
+    title: issue.title,
+    state: issue.state === "closed" ? "closed" : "open",
+    author: issue.user?.login ?? "unknown",
+    url: issue.html_url,
+    labels: (issue.labels ?? []).map(l => (typeof l === "string" ? l : l.name ?? "")).filter(Boolean)
+  };
 }
 
 /** First PullRequestProvider adapter: GitHub REST (Layer C). */
@@ -68,6 +93,14 @@ export class GitHubPullRequestProvider implements PullRequestProvider {
     return compareUrl(this.deps.remote, baseBranch, headBranch);
   }
 
+  async listIssues(): Promise<IssueSummary[]> {
+    const data = await this.request<GitHubIssue[]>(
+      `/repos/${this.slug}/issues?state=open&per_page=50`
+    );
+    // The issues endpoint also returns PRs — those live in listOpen.
+    return data.filter(issue => !issue.pull_request).map(mapGitHubIssue);
+  }
+
   private get slug(): string {
     return `${this.deps.remote.owner}/${this.deps.remote.repo}`;
   }
@@ -82,7 +115,8 @@ export class GitHubPullRequestProvider implements PullRequestProvider {
       headBranch: pr.head.ref,
       headSha: pr.head.sha,
       baseBranch: pr.base.ref,
-      url: pr.html_url
+      url: pr.html_url,
+      fork: !pr.head.repo || (pr.head.repo.full_name !== undefined && pr.head.repo.full_name !== this.slug)
     };
   }
 

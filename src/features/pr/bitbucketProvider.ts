@@ -1,4 +1,4 @@
-import { CiStatus, PullRequestProvider, PullRequestSummary, ReviewStatus } from "../../domain/pr";
+import { CiStatus, IssueSummary, PullRequestProvider, PullRequestSummary, ReviewStatus } from "../../domain/pr";
 import { BitbucketRemote } from "./remoteInfo";
 
 /** Map Bitbucket build statuses for a commit to the neutral CI status. Pure. */
@@ -32,13 +32,42 @@ interface BitbucketPr {
   title: string;
   state: string;
   author?: { display_name?: string; nickname?: string };
-  source: { branch: { name: string }; commit?: { hash?: string } };
+  source: { branch: { name: string }; commit?: { hash?: string }; repository?: { full_name?: string } };
   destination: { branch: { name: string } };
   links: { html: { href: string } };
 }
 
+interface BitbucketIssue {
+  id: number;
+  title: string;
+  state: string;
+  reporter?: { display_name?: string };
+  links: { html: { href: string } };
+}
+
+/** Map a Bitbucket issue to the neutral summary. Pure. */
+export function mapBitbucketIssue(issue: BitbucketIssue): IssueSummary {
+  return {
+    id: String(issue.id),
+    number: issue.id,
+    title: issue.title,
+    state: issue.state === "resolved" || issue.state === "closed" ? "closed" : "open",
+    author: issue.reporter?.display_name ?? "unknown",
+    url: issue.links.html.href,
+    labels: []
+  };
+}
+
+/** Bitbucket issue states that count as open. */
+export function isOpenBitbucketIssue(issue: BitbucketIssue): boolean {
+  return issue.state === "new" || issue.state === "open";
+}
+
 /** Map a Bitbucket Cloud pull request to the neutral summary. Pure. */
-export function mapBitbucketPullRequest(pr: BitbucketPr): PullRequestSummary {
+export function mapBitbucketPullRequest(
+  pr: BitbucketPr,
+  repositorySlug?: string
+): PullRequestSummary {
   return {
     id: String(pr.id),
     number: pr.id,
@@ -48,7 +77,10 @@ export function mapBitbucketPullRequest(pr: BitbucketPr): PullRequestSummary {
     headBranch: pr.source.branch.name,
     headSha: pr.source.commit?.hash ?? "",
     baseBranch: pr.destination.branch.name,
-    url: pr.links.html.href
+    url: pr.links.html.href,
+    fork: repositorySlug !== undefined
+      && pr.source.repository?.full_name !== undefined
+      && pr.source.repository.full_name !== repositorySlug
   };
 }
 
@@ -78,7 +110,14 @@ export class BitbucketPullRequestProvider implements PullRequestProvider {
     const data = await this.request<{ values: BitbucketPr[] }>(
       `${this.repoPath}/pullrequests?state=OPEN&pagelen=50`
     );
-    return (data.values ?? []).map(mapBitbucketPullRequest);
+    return (data.values ?? []).map(pr => mapBitbucketPullRequest(pr, this.repositorySlug));
+  }
+
+  async listIssues(): Promise<IssueSummary[]> {
+    const data = await this.request<{ values: BitbucketIssue[] }>(
+      `${this.repoPath}/issues?pagelen=50&sort=-created_on`
+    );
+    return (data.values ?? []).filter(isOpenBitbucketIssue).map(mapBitbucketIssue);
   }
 
   async forBranch(branch: string): Promise<PullRequestSummary | undefined> {

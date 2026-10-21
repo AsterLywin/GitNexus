@@ -47,10 +47,13 @@ import { resolveBlameTarget } from "./features/blame/blameCache";
 import { DiffService } from "./features/diff/diffService";
 import { buildCommitMessagePrompt, buildExplainCommitPrompt } from "./features/ai/prompts";
 import { askModel, pickChatModel } from "./features/ai/lmChat";
+import { askByok, GEMINI_KEY_SECRET, OPENAI_KEY_SECRET } from "./features/ai/byok";
 import { RebasePlannerPanel } from "./features/rebase/rebasePlannerPanel";
 import { RemoteService } from "./git/remoteService";
 import { GitHubPullRequestProvider } from "./features/pr/githubProvider";
-import { parseBitbucketRemote, parseGitHubRemote, parseGitLabRemote } from "./features/pr/remoteInfo";
+import { commitWebUrl, parseBitbucketRemote, parseGitHubRemote, parseGitLabRemote } from "./features/pr/remoteInfo";
+import { LaunchpadPanel } from "./features/launchpad/launchpadPanel";
+import { LaunchpadItem, prCheckoutRefspec, slugifyIssueBranch, sortLaunchpadItems } from "./features/launchpad/launchpadModel";
 import { GitLabPullRequestProvider } from "./features/pr/gitlabProvider";
 import { BitbucketPullRequestProvider } from "./features/pr/bitbucketProvider";
 import { buildPrDecorations } from "./features/pr/prDecorations";
@@ -816,6 +819,119 @@ export function activate(context: vscode.ExtensionContext): void {
     } catch (error) { showError(error); }
   });
 
+  commands.register("gitnexus.openLaunchpad", async () => {
+    try {
+      LaunchpadPanel.open(context, {
+        onCollect: async () => {
+          const items: LaunchpadItem[] = [];
+          for (const snapshot of store.all()) {
+            const root = snapshot.identity.rootUri;
+            const provider = await makePrProvider(root, false).catch(() => undefined);
+            if (!provider) continue;
+            const [prs, issues] = await Promise.all([
+              provider.listOpen().catch(() => []),
+              provider.listIssues ? provider.listIssues().catch(() => []) : Promise.resolve([])
+            ]);
+            for (const pr of prs) {
+              items.push({
+                kind: "pr", providerId: provider.id, providerName: provider.displayName,
+                repoSlug: provider.repositorySlug, root, number: pr.number, title: pr.title,
+                author: pr.author, url: pr.url, headBranch: pr.headBranch,
+                baseBranch: pr.baseBranch, fork: pr.fork
+              });
+            }
+            for (const issue of issues) {
+              items.push({
+                kind: "issue", providerId: provider.id, providerName: provider.displayName,
+                repoSlug: provider.repositorySlug, root, number: issue.number, title: issue.title,
+                author: issue.author, url: issue.url, labels: issue.labels
+              });
+            }
+          }
+          return sortLaunchpadItems(items);
+        },
+        onOpenUrl: url => { void vscode.env.openExternal(vscode.Uri.parse(url)); },
+        onCheckout: async item => {
+          try {
+            const refspec = prCheckoutRefspec(item.providerId, {
+              number: item.number, headBranch: item.headBranch ?? ""
+            });
+            await vscode.window.withProgress(
+              { location: vscode.ProgressLocation.Notification, title: `GitNexus: fetching PR #${item.number}…` },
+              async () => { await executor.exec(["fetch", "origin", refspec], { cwd: item.root, timeoutMs: 120000 }); }
+            );
+            await branches.checkout(item.root, `pr-${item.number}`);
+            await repositories.refresh(item.root);
+            void vscode.window.showInformationMessage(`GitNexus: checked out PR #${item.number} as branch pr-${item.number}.`);
+          } catch (error) { showError(error); }
+        },
+        onBranchFromIssue: async item => {
+          try {
+            const name = slugifyIssueBranch(item.number, item.title);
+            await branches.create(item.root, name);
+            await branches.checkout(item.root, name);
+            await repositories.refresh(item.root);
+            void vscode.window.showInformationMessage(`GitNexus: started branch ${name} for issue #${item.number}.`);
+          } catch (error) { showError(error); }
+        }
+      });
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.suggestChanges", async () => {
+    try {
+      const root = await resolveWorkspacePath(); if (!root) return;
+      const snapshot = store.get(root);
+      const branch = snapshot?.status.branch;
+      if (!branch) { void vscode.window.showInformationMessage("GitNexus: check out a branch with an open PR first."); return; }
+      if (!snapshot || snapshot.status.entries.length === 0) {
+        void vscode.window.showInformationMessage("GitNexus: no local changes to suggest.");
+        return;
+      }
+      const provider = await makePrProvider(root, false);
+      if (!provider) { void vscode.window.showInformationMessage("GitNexus: no supported remote for this repository."); return; }
+      const pr = await provider.forBranch(branch);
+      if (!pr) { void vscode.window.showInformationMessage(`GitNexus: no open PR for ${branch}.`); return; }
+      if (pr.fork) { void vscode.window.showInformationMessage("GitNexus: fork PRs cannot receive direct suggestion pushes."); return; }
+      const confirm = await vscode.window.showWarningMessage(
+        `Push your current changes to PR #${pr.number} “${pr.title}” as a suggestion commit?`,
+        { modal: true }, "Suggest Changes"
+      );
+      if (confirm !== "Suggest Changes") return;
+      const message = await vscode.window.showInputBox({
+        prompt: "Suggestion commit message",
+        value: `Suggestion for #${pr.number}`
+      });
+      if (!message?.trim()) return;
+      await mutation.run({ rootUri: root, operation: "stage", args: ["add", "-A"] });
+      await mutation.run({ rootUri: root, operation: "commit", args: ["commit", "-m", message.trim()] });
+      await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: `GitNexus: pushing suggestion to PR #${pr.number}…` },
+        async () => { await executor.exec(["push", "origin", branch], { cwd: root, timeoutMs: 120000 }); }
+      );
+      await repositories.refresh(root);
+      const open = await vscode.window.showInformationMessage(
+        `GitNexus: suggestion pushed to PR #${pr.number}.`, "Open PR"
+      );
+      if (open === "Open PR") await vscode.env.openExternal(vscode.Uri.parse(pr.url));
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.openCommitOnRemote", async (item?: CommitTreeItem) => {
+    try {
+      if (!item) return;
+      const snapshot = store.get(item.root);
+      const remotes = snapshot?.domains?.remotes ?? [];
+      const ordered = [...remotes].sort((a, b) => (a.name === "origin" ? 0 : 1) - (b.name === "origin" ? 0 : 1));
+      const gheHosts = vscode.workspace.getConfiguration("gitnexus").get<string[]>("pr.githubEnterpriseHosts", []);
+      for (const remote of ordered) {
+        const url = commitWebUrl(remote.fetchUrl ?? remote.pushUrl ?? "", item.commit.id, gheHosts);
+        if (url) { await vscode.env.openExternal(vscode.Uri.parse(url)); return; }
+      }
+      void vscode.window.showInformationMessage("GitNexus: no GitHub, GitLab or Bitbucket remote to open this commit on.");
+    } catch (error) { showError(error); }
+  });
+
   commands.register("gitnexus.setGitLabToken", async () => {
     try {
       const host = await vscode.window.showInputBox({
@@ -1163,6 +1279,54 @@ export function activate(context: vscode.ExtensionContext): void {
     searchCompareView.clear();
   });
 
+  const askAiText = async (prompt: string, token: vscode.CancellationToken): Promise<string | undefined> => {
+    const config = vscode.workspace.getConfiguration("gitnexus");
+    const controller = new AbortController();
+    const cancelWatch = token.onCancellationRequested(() => controller.abort());
+    try {
+      const byok = await askByok(prompt, {
+        provider: config.get<string>("ai.provider", "auto"),
+        geminiModel: config.get<string>("ai.gemini.model", "gemini-2.5-flash"),
+        openAiBaseUrl: config.get<string>("ai.openai.baseUrl", "https://api.openai.com/v1"),
+        openAiModel: config.get<string>("ai.openai.model", "gpt-4o-mini")
+      }, async key => context.secrets.get(key), fetch, controller.signal);
+      if (byok) return byok;
+    } finally {
+      cancelWatch.dispose();
+    }
+    const model = await pickChatModel();
+    if (!model) return undefined;
+    return askModel(model, prompt, token);
+  };
+
+  const NO_AI_MESSAGE = "GitNexus: no AI model available. Install GitHub Copilot, or set your own API key with “GitNexus: Set AI API Key”.";
+
+  commands.register("gitnexus.setAiApiKey", async () => {
+    try {
+      const choice = await vscode.window.showQuickPick([
+        { label: "Google Gemini", secret: GEMINI_KEY_SECRET },
+        { label: "OpenAI-compatible", secret: OPENAI_KEY_SECRET }
+      ], { placeHolder: "Which AI provider's API key?" });
+      if (!choice) return;
+      const key = await vscode.window.showInputBox({ prompt: `API key for ${choice.label}`, password: true });
+      if (!key) return;
+      await context.secrets.store(choice.secret, key);
+      void vscode.window.showInformationMessage(`GitNexus: ${choice.label} API key saved (stored securely, never in settings).`);
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.clearAiApiKey", async () => {
+    try {
+      const choice = await vscode.window.showQuickPick([
+        { label: "Google Gemini", secret: GEMINI_KEY_SECRET },
+        { label: "OpenAI-compatible", secret: OPENAI_KEY_SECRET }
+      ], { placeHolder: "Remove which API key?" });
+      if (!choice) return;
+      await context.secrets.delete(choice.secret);
+      void vscode.window.showInformationMessage(`GitNexus: ${choice.label} API key removed.`);
+    } catch (error) { showError(error); }
+  });
+
   commands.register("gitnexus.generateCommitMessage", async () => {
     try {
       const root = await resolveWorkspacePath(); if (!root) return;
@@ -1171,16 +1335,11 @@ export function activate(context: vscode.ExtensionContext): void {
         void vscode.window.showInformationMessage("GitNexus: stage some changes first, then generate a commit message.");
         return;
       }
-      const model = await pickChatModel();
-      if (!model) {
-        void vscode.window.showInformationMessage("GitNexus: no language model is available. Install GitHub Copilot to use AI features.");
-        return;
-      }
       const message = await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: "GitNexus: generating commit message…", cancellable: true },
-        (_progress, token) => askModel(model, buildCommitMessagePrompt(staged.rawPatch), token)
+        (_progress, token) => askAiText(buildCommitMessagePrompt(staged.rawPatch), token)
       );
-      if (!message) return;
+      if (!message) { void vscode.window.showInformationMessage(NO_AI_MESSAGE); return; }
       const provider = scmProviders.find(p => p.hasRoot(root));
       if (provider) provider.setCommitMessage(message);
       else {
@@ -1200,16 +1359,11 @@ export function activate(context: vscode.ExtensionContext): void {
       if (!root) return;
       commitId ??= "HEAD";
       const details = await commitDetails.get(root, commitId);
-      const model = await pickChatModel();
-      if (!model) {
-        void vscode.window.showInformationMessage("GitNexus: no language model is available. Install GitHub Copilot to use AI features.");
-        return;
-      }
       const explanation = await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: "GitNexus: explaining commit…", cancellable: true },
-        (_progress, token) => askModel(model, buildExplainCommitPrompt(details.commit.subject, details.commit.body ?? "", details.diff), token)
+        (_progress, token) => askAiText(buildExplainCommitPrompt(details.commit.subject, details.commit.body ?? "", details.diff), token)
       );
-      if (!explanation) return;
+      if (!explanation) { void vscode.window.showInformationMessage(NO_AI_MESSAGE); return; }
       const document = await vscode.workspace.openTextDocument({
         language: "markdown",
         content: `# ${details.commit.subject}\n\n\`${details.commit.id}\` · ${details.commit.authorName}\n\n${explanation}\n`

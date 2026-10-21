@@ -3,7 +3,7 @@
 **Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit + all five phases (build clean, 41/41 tests pass, VSIX 1.0.0 packaged)
 **Reference specs:** [GIT_ENGINE_SPEC.md](./GIT_ENGINE_SPEC.md) · [REPOSITORY_STATE_MODEL.md](./REPOSITORY_STATE_MODEL.md)
 
-## Status: COMPLETE — v2.0.0 (2026-10-21). Every phase below shipped; the parity track is done. Unscheduled future ideas: per-commit file blame timeline, visual rebase editor, cloud workspace sync.
+## Status: v3.0.0 (2026-10-21) — v2.0.0 completed the roadmap; Phase 13 then closed the GitLens Pro gap (Launchpad, Code Suggest, BYOK AI, deeper integrations). Unscheduled future ideas: per-commit file blame timeline, visual rebase editor, cloud workspace sync.
 
 | Area | Done | State |
 | --- | --- | --- |
@@ -242,6 +242,21 @@ stash/compare polish. Marketplace publication stays the user's step.
 - [x] **Stash show-diff** and **compare file diff** context actions.
 - [x] Final audit: clean-slate build + full suite (71) green, command
       registration mechanically verified (68/68).
+
+---
+
+## Phase 13 — GitLens Pro parity → v3.0.0
+
+- [x] **Launchpad**: cross-repo PR + issue hub (providers gained
+      listIssues + fork flags), PR checkout via host PR refs,
+      start-work branches from issues.
+- [x] **Code Suggest**: stage/commit/push local changes onto the
+      current branch's PR (same-repo only, modal confirmation).
+- [x] **BYOK AI**: Gemini + OpenAI-compatible endpoints, keys in
+      SecretStorage, provider setting (auto/lm/gemini/openai).
+- [x] **Deeper integrations**: GitLab/Bitbucket "#123" autolinks,
+      open-commit-on-remote for all three hosts.
+- [x] Worktree management audited — already complete since v1.0/1.2.
 
 ---
 

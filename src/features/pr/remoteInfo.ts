@@ -29,6 +29,28 @@ export function compareUrl(remote: GitHubRemote, baseBranch: string, headBranch:
   return `https://${remote.host ?? "github.com"}/${remote.owner}/${remote.repo}/compare/${base}...${head}?expand=1`;
 }
 
+/** Web URL of a commit on whichever host the remote points at. Pure. */
+export function commitWebUrl(remoteUrl: string, sha: string, githubEnterpriseHosts: string[] = []): string | undefined {
+  const github = parseGitHubRemote(remoteUrl, githubEnterpriseHosts);
+  if (github) return `https://${github.host ?? "github.com"}/${github.owner}/${github.repo}/commit/${sha}`;
+  const gitlab = parseGitLabRemote(remoteUrl);
+  if (gitlab) return `https://${gitlab.host}/${gitlab.projectPath}/-/commit/${sha}`;
+  const bitbucket = parseBitbucketRemote(remoteUrl);
+  if (bitbucket) return `https://bitbucket.org/${bitbucket.workspace}/${bitbucket.repo}/commits/${sha}`;
+  return undefined;
+}
+
+/** Web URL of the issue list item `#<number>` on the remote's host. Pure. */
+export function issueWebUrlTemplate(remoteUrl: string, githubEnterpriseHosts: string[] = []): string | undefined {
+  const github = parseGitHubRemote(remoteUrl, githubEnterpriseHosts);
+  if (github) return `https://${github.host ?? "github.com"}/${github.owner}/${github.repo}/issues/<num>`;
+  const gitlab = parseGitLabRemote(remoteUrl);
+  if (gitlab) return `https://${gitlab.host}/${gitlab.projectPath}/-/issues/<num>`;
+  const bitbucket = parseBitbucketRemote(remoteUrl);
+  if (bitbucket) return `https://bitbucket.org/${bitbucket.workspace}/${bitbucket.repo}/issues/<num>`;
+  return undefined;
+}
+
 export interface GitLabRemote {
   host: string;
   /** Full project path, e.g. "group/subgroup/project" (nested groups). */

@@ -1,4 +1,4 @@
-import { CiStatus, PullRequestProvider, PullRequestSummary, ReviewStatus } from "../../domain/pr";
+import { CiStatus, IssueSummary, PullRequestProvider, PullRequestSummary, ReviewStatus } from "../../domain/pr";
 import { GitLabRemote } from "./remoteInfo";
 
 /** Map a GitLab pipeline status to the neutral CI status. Pure. */
@@ -40,7 +40,32 @@ interface GitLabMr {
   sha?: string;
   source_branch: string;
   target_branch: string;
+  source_project_id?: number;
+  target_project_id?: number;
   author?: { username?: string };
+}
+
+interface GitLabIssue {
+  id: number;
+  iid: number;
+  title: string;
+  state: string;
+  web_url: string;
+  labels?: string[];
+  author?: { username?: string };
+}
+
+/** Map a GitLab issue to the neutral summary. Pure. */
+export function mapGitLabIssue(issue: GitLabIssue): IssueSummary {
+  return {
+    id: String(issue.id),
+    number: issue.iid,
+    title: issue.title,
+    state: issue.state === "closed" ? "closed" : "open",
+    author: issue.author?.username ?? "unknown",
+    url: issue.web_url,
+    labels: issue.labels ?? []
+  };
 }
 
 /** Map a GitLab merge request to the provider-neutral summary. Pure. */
@@ -54,7 +79,10 @@ export function mapGitLabMergeRequest(mr: GitLabMr): PullRequestSummary {
     headBranch: mr.source_branch,
     headSha: mr.sha ?? "",
     baseBranch: mr.target_branch,
-    url: mr.web_url
+    url: mr.web_url,
+    fork: mr.source_project_id !== undefined
+      && mr.target_project_id !== undefined
+      && mr.source_project_id !== mr.target_project_id
   };
 }
 
@@ -117,6 +145,13 @@ export class GitLabPullRequestProvider implements PullRequestProvider {
       approved_by?: unknown[];
     }>(`/projects/${this.projectId}/merge_requests/${iid}/approvals`);
     return mapGitLabApproval(data);
+  }
+
+  async listIssues(): Promise<IssueSummary[]> {
+    const data = await this.request<GitLabIssue[]>(
+      `/projects/${this.projectId}/issues?state=opened&per_page=50`
+    );
+    return data.map(mapGitLabIssue);
   }
 
   createUrl(baseBranch: string, headBranch: string): string {

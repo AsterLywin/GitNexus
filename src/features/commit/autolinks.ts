@@ -4,9 +4,12 @@
  *  - user rules from `gitnexus.autolinks` config: { prefix, url } where
  *    the URL template contains `<num>` (e.g. prefix "PROJ-" →
  *    "https://jira.example.com/browse/<num>");
- *  - the repository's GitHub remote: "#123" → that repo's issues.
+ *  - the repository's remote: "#123" → that repo's issues on GitHub,
+ *    GitLab or Bitbucket.
  * Pure and unit-tested; callers assemble rules from config + remotes.
  */
+
+import { issueWebUrlTemplate } from "../pr/remoteInfo";
 
 export interface AutolinkRule {
   prefix: string;
@@ -32,9 +35,9 @@ export function assembleAutolinkRules(
     .filter(rule => rule.prefix && rule.url)
     .map(rule => ({ prefix: rule.prefix, urlTemplate: rule.url }));
   for (const url of remoteUrls) {
-    const path = githubRemotePath(url);
-    if (path) {
-      rules.push({ prefix: "#", urlTemplate: `https://github.com/${path}/issues/<num>` });
+    const template = issueWebUrlTemplate(url);
+    if (template) {
+      rules.push({ prefix: "#", urlTemplate: template });
       break;
     }
   }

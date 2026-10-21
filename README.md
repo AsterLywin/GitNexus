@@ -15,9 +15,14 @@ layer (GitHub adapter included), and an AI context engine.
   size), ref and PR decorations, search with next/previous match, and
   per-commit actions: checkout, create branch/tag, copy hash, add to AI
   context.
+- **Launchpad** — a cross-repository hub of open pull requests and
+  issues (GitHub/GitLab/Bitbucket) with web open, PR checkout as a
+  local branch, and start-work branches from issues; plus Code Suggest
+  to push changes onto the current PR.
 - **AI assist** — generate a commit message from the staged diff and
-  explain any commit, via the editor's language model (e.g. Copilot);
-  issue references in commit text autolink to GitHub or your tracker.
+  explain any commit, via the editor's language model (e.g. Copilot)
+  or your own Gemini/OpenAI API key (SecretStorage); issue references
+  in commit text autolink to your host or tracker.
 - **Blame annotations** — current-line blame (author, relative time,
   summary), full-file gutter blame with age heat (toggle from the editor
   context menu), commit hover cards, and file/per-function CodeLens —

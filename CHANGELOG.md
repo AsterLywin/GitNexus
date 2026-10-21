@@ -3,6 +3,30 @@
 All notable changes to GitNexus are documented here.
 Format follows Keep a Changelog; versions follow SemVer once 1.0 ships.
 
+## [3.0.0] — 2026-10-21 — GitLens Pro parity release
+
+### Added — Phase 13: Launchpad, Code Suggest, BYOK AI, deeper integrations
+- **Launchpad** (`gitnexus.openLaunchpad`): a cross-repository hub of
+  open pull requests and issues from every workspace repository with a
+  GitHub/GitLab/Bitbucket remote — open on the web, check out a PR as
+  a local `pr-<n>` branch (PR refs on GitHub/GitLab, source branch on
+  Bitbucket), or start a `<issue#>-<slug>` branch from an issue.
+  Providers gained `listIssues()` (PRs filtered out on GitHub) and
+  fork detection on PR summaries.
+- **Code Suggest** (`gitnexus.suggestChanges`, SCM title bar): with a
+  PR branch checked out and local changes present, stage + commit +
+  push them onto the PR as a suggestion commit (fork PRs are refused
+  with a clear message; confirmation is modal).
+- **Bring-your-own-key AI**: Gemini (default model gemini-2.5-flash)
+  or any OpenAI-compatible endpoint, keys in SecretStorage via
+  "GitNexus: Set AI API Key" (`gitnexus.ai.provider`: auto/lm/gemini/
+  openai). Generate/explain prefer BYOK, then the editor model.
+- **Deeper integrations**: "#123" autolinks now resolve on GitLab and
+  Bitbucket remotes too, and "Open Commit on Remote" deep-links a
+  commit to its page on any of the three hosts.
+- Worktree management re-verified complete (add/remove/move/lock/
+  unlock/prune/open-in-new-window, service + view + menus).
+
 ## [2.0.0] — 2026-10-21 — PROJECT COMPLETE
 
 The full roadmap is delivered: the original engine/state/features

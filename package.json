@@ -2,7 +2,7 @@
   "name": "gitnexus",
   "displayName": "GitNexus",
   "description": "Open-source, local-first Git intelligence for VS Code.",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "publisher": "gitnexus",
   "license": "Apache-2.0",
   "repository": {
@@ -77,7 +77,12 @@
     "onCommand:gitnexus.revealInGraph",
     "onCommand:gitnexus.fileHistory",
     "onCommand:gitnexus.stashShowItem",
-    "onCommand:gitnexus.compareFileDiff"
+    "onCommand:gitnexus.compareFileDiff",
+    "onCommand:gitnexus.openLaunchpad",
+    "onCommand:gitnexus.setAiApiKey",
+    "onCommand:gitnexus.clearAiApiKey",
+    "onCommand:gitnexus.suggestChanges",
+    "onCommand:gitnexus.openCommitOnRemote"
   ],
   "main": "./dist/src/extension.js",
   "contributes": {
@@ -353,6 +358,26 @@
       {
         "command": "gitnexus.compareFileDiff",
         "title": "GitNexus: Show File Diff for Compare"
+      },
+      {
+        "command": "gitnexus.openLaunchpad",
+        "title": "GitNexus: Open Launchpad"
+      },
+      {
+        "command": "gitnexus.setAiApiKey",
+        "title": "GitNexus: Set AI API Key"
+      },
+      {
+        "command": "gitnexus.clearAiApiKey",
+        "title": "GitNexus: Clear AI API Key"
+      },
+      {
+        "command": "gitnexus.suggestChanges",
+        "title": "GitNexus: Suggest Changes on Current PR"
+      },
+      {
+        "command": "gitnexus.openCommitOnRemote",
+        "title": "GitNexus: Open Commit on Remote"
       }
     ],
     "configuration": {
@@ -448,6 +473,32 @@
             "type": "string"
           },
           "description": "GitHub Enterprise hostnames to recognize for pull requests (API base becomes https://<host>/api/v3)."
+        },
+        "gitnexus.ai.provider": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "lm",
+            "gemini",
+            "openai"
+          ],
+          "description": "AI source for generate/explain features: auto (own API key first, then the editor model), lm (editor model only), gemini or openai (your own key, set via 'GitNexus: Set AI API Key')."
+        },
+        "gitnexus.ai.gemini.model": {
+          "type": "string",
+          "default": "gemini-2.5-flash",
+          "description": "Gemini model for BYOK AI features."
+        },
+        "gitnexus.ai.openai.baseUrl": {
+          "type": "string",
+          "default": "https://api.openai.com/v1",
+          "description": "Base URL for the OpenAI-compatible endpoint (BYOK)."
+        },
+        "gitnexus.ai.openai.model": {
+          "type": "string",
+          "default": "gpt-4o-mini",
+          "description": "Model for the OpenAI-compatible endpoint (BYOK)."
         }
       }
     },
@@ -563,6 +614,11 @@
           "command": "gitnexus.searchCompareClear",
           "when": "view == gitnexus.searchCompare",
           "group": "navigation@3"
+        },
+        {
+          "command": "gitnexus.openLaunchpad",
+          "when": "view == gitnexus.commits",
+          "group": "navigation@9"
         }
       ],
       "view/item/context": [
@@ -695,6 +751,11 @@
           "command": "gitnexus.compareFileDiff",
           "when": "view == gitnexus.searchCompare && viewItem == compareFile",
           "group": "1_diff@1"
+        },
+        {
+          "command": "gitnexus.openCommitOnRemote",
+          "when": "(view == gitnexus.commits || view == gitnexus.searchCompare) && viewItem == commit",
+          "group": "4_remote@1"
         }
       ],
       "commandPalette": [
@@ -756,6 +817,11 @@
           "command": "gitnexus.generateCommitMessage",
           "when": "scmProvider == gitnexus",
           "group": "navigation"
+        },
+        {
+          "command": "gitnexus.suggestChanges",
+          "when": "scmProvider == gitnexus",
+          "group": "navigation@2"
         }
       ],
       "explorer/context": [
