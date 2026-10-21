@@ -45,6 +45,8 @@ import { BranchesViewProvider, BranchTreeItem, TagsViewProvider, TagTreeItem, Re
 import { StashesViewProvider, StashTreeItem, ContributorsViewProvider } from "./features/explorer/stashContributorsViews";
 import { SearchCompareViewProvider } from "./features/explorer/searchCompareView";
 import { DiffService } from "./features/diff/diffService";
+import { buildCommitMessagePrompt, buildExplainCommitPrompt } from "./features/ai/prompts";
+import { askModel, pickChatModel } from "./features/ai/lmChat";
 import { RebasePlannerPanel } from "./features/rebase/rebasePlannerPanel";
 import { RemoteService } from "./git/remoteService";
 import { GitHubPullRequestProvider } from "./features/pr/githubProvider";
@@ -1028,6 +1030,61 @@ export function activate(context: vscode.ExtensionContext): void {
 
   commands.register("gitnexus.searchCompareClear", async () => {
     searchCompareView.clear();
+  });
+
+  commands.register("gitnexus.generateCommitMessage", async () => {
+    try {
+      const root = await resolveWorkspacePath(); if (!root) return;
+      const staged = await diffs.diff(root, ["--cached"]);
+      if (!staged.rawPatch.trim()) {
+        void vscode.window.showInformationMessage("GitNexus: stage some changes first, then generate a commit message.");
+        return;
+      }
+      const model = await pickChatModel();
+      if (!model) {
+        void vscode.window.showInformationMessage("GitNexus: no language model is available. Install GitHub Copilot to use AI features.");
+        return;
+      }
+      const message = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: "GitNexus: generating commit message…", cancellable: true },
+        (_progress, token) => askModel(model, buildCommitMessagePrompt(staged.rawPatch), token)
+      );
+      if (!message) return;
+      const provider = scmProviders.find(p => p.hasRoot(root));
+      if (provider) provider.setCommitMessage(message);
+      else {
+        await vscode.env.clipboard.writeText(message);
+        void vscode.window.showInformationMessage("GitNexus: commit message copied to the clipboard (no SCM view for this folder).");
+      }
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.explainCommit", async (item?: CommitTreeItem | string) => {
+    try {
+      let root: string | undefined;
+      let commitId: string | undefined;
+      if (typeof item === "string") commitId = item;
+      else if (item instanceof CommitTreeItem) { root = item.root; commitId = item.commit.id; }
+      if (!root) root = await resolveWorkspacePath();
+      if (!root) return;
+      commitId ??= "HEAD";
+      const details = await commitDetails.get(root, commitId);
+      const model = await pickChatModel();
+      if (!model) {
+        void vscode.window.showInformationMessage("GitNexus: no language model is available. Install GitHub Copilot to use AI features.");
+        return;
+      }
+      const explanation = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: "GitNexus: explaining commit…", cancellable: true },
+        (_progress, token) => askModel(model, buildExplainCommitPrompt(details.commit.subject, details.commit.body ?? "", details.diff), token)
+      );
+      if (!explanation) return;
+      const document = await vscode.workspace.openTextDocument({
+        language: "markdown",
+        content: `# ${details.commit.subject}\n\n\`${details.commit.id}\` · ${details.commit.authorName}\n\n${explanation}\n`
+      });
+      await vscode.window.showTextDocument(document, { preview: false });
+    } catch (error) { showError(error); }
   });
 
   commands.register("gitnexus.remoteFetchItem", async (item?: RemoteTreeItem) => {

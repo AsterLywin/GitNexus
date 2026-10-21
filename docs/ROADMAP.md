@@ -3,7 +3,7 @@
 **Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit + all five phases (build clean, 41/41 tests pass, VSIX 1.0.0 packaged)
 **Reference specs:** [GIT_ENGINE_SPEC.md](./GIT_ENGINE_SPEC.md) · [REPOSITORY_STATE_MODEL.md](./REPOSITORY_STATE_MODEL.md)
 
-## Where we are: v1.3.0 — GitLens-parity track: Phase 6 (annotations) + Phase 7 (sidebar views) + Phase 8 (buffer blame, Search & Compare) shipped
+## Where we are: v1.4.0 — GitLens-parity track: Phases 6–9 shipped (annotations, sidebar views, buffer blame + Search & Compare, graph polish + autolinks + AI)
 
 | Area | Done | State |
 | --- | --- | --- |
@@ -172,10 +172,26 @@ Goal: the activity-bar surface — the second-largest perceived GitLens gap.
       two-ref compare (ahead/behind commits + merge-base changed
       files) reusing the log-range and name-status engine reads.
 
-**Exit criteria:** both shipped with tests (56) green. Next candidates:
-commit graph polish (avatars, configurable columns), GitLab/Bitbucket
-PR adapters, autolinks / deep links, generative AI features (commit
-messages, explain) on top of the AI context package.
+**Exit criteria:** both shipped with tests (56) green.
+
+---
+
+## Phase 9 — Graph polish, autolinks, AI features → v1.4.0
+
+- [x] **Graph polish**: Gravatar avatars + author/date/hash columns in
+      the virtual SVG renderer, each toggleable
+      (`gitnexus.graph.show*`), panels re-render on config change.
+- [x] **Autolinks**: pure linkifier; "#123" → the repo's GitHub issues
+      from its remote, custom prefixes from `gitnexus.autolinks`;
+      applied to blame hovers and Commits tooltips.
+- [x] **AI features** on `vscode.lm`: generate-commit-message from the
+      staged diff into the SCM input, explain-commit to a Markdown
+      doc; graceful no-model fallback.
+
+**Exit criteria:** shipped with tests (61) green. Next candidates:
+GitLab/Bitbucket PR adapters (need a token story — VS Code ships no
+built-in auth provider for them, unlike GitHub), inline graph row
+actions, deep links into the graph from tree views.
 
 ---
 

@@ -3,6 +3,7 @@ import { BlameCache } from "./blameCache";
 import { BlameService } from "./blameService";
 import { blameForDocument } from "./documentBlame";
 import { formatRelativeTime } from "./format";
+import { assembleAutolinkRules, escapeMarkdown, linkifyMarkdown } from "../commit/autolinks";
 
 /**
  * Commit hover card for blamed lines: subject + body, author, absolute
@@ -54,16 +55,16 @@ export class BlameHoverProvider implements vscode.HoverProvider {
     const timestamp = info?.timestamp || entry.timestamp;
     const date = new Date(timestamp * 1000);
     const args = encodeURIComponent(JSON.stringify([entry.commit]));
+    const rules = assembleAutolinkRules(
+      vscode.workspace.getConfiguration("gitnexus").get<Array<{ prefix: string; url: string }>>("autolinks", []),
+      this.cache.remoteUrlsFor(target.root)
+    );
 
-    md.appendMarkdown(`**${escapeMarkdown(subject)}**\n\n`);
-    if (info?.body) md.appendMarkdown(`${escapeMarkdown(info.body)}\n\n`);
+    md.appendMarkdown(`**${linkifyMarkdown(subject, rules)}**\n\n`);
+    if (info?.body) md.appendMarkdown(`${linkifyMarkdown(info.body, rules)}\n\n`);
     md.appendMarkdown(`---\n\n`);
     md.appendMarkdown(`${escapeMarkdown(author)}${email ? ` &lt;${escapeMarkdown(email)}&gt;` : ""} — ${date.toLocaleString()} (${formatRelativeTime(timestamp)})\n\n`);
     md.appendMarkdown(`[\`${entry.commit.slice(0, 10)}\`](command:gitnexus.copyHash?${args} "Copy full hash") · [Show commit](command:gitnexus.showCommit?${args})`);
     return new vscode.Hover(md);
   }
-}
-
-function escapeMarkdown(text: string): string {
-  return text.replace(/([\\`*_{}[\]()#+\-.!|>])/g, "\\$1");
 }

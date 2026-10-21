@@ -15,6 +15,10 @@ export interface GraphRenderNode extends GraphNode {
   label: string;
   /** Display author derived from the commit author name. */
   author: string;
+  /** Author email (avatar + tooltip surfaces). */
+  authorEmail: string;
+  /** Author timestamp, seconds since epoch (date column). */
+  authorTimestamp: number;
   /** Ref label texts decorating this commit (branches, remotes, tags), if any. */
   refs?: string[];
 }
@@ -60,6 +64,8 @@ export function createRenderModel(
     row: index,
     label: node.commit?.subject ?? "",
     author: node.commit?.authorName ?? "",
+    authorEmail: node.commit?.authorEmail ?? "",
+    authorTimestamp: node.commit?.authorTimestamp ?? 0,
     refs: refsByCommit.get(node.id)
   }));
 

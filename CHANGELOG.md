@@ -3,6 +3,23 @@
 All notable changes to GitNexus are documented here.
 Format follows Keep a Changelog; versions follow SemVer once 1.0 ships.
 
+## [1.4.0] — 2026-10-21
+
+### Added — Phase 9: graph polish, autolinks, AI features
+- **Graph polish**: Gravatar avatars beside each commit, plus author /
+  date / short-hash columns (fixed-position SVG columns over the
+  virtual window). Toggle each via `gitnexus.graph.showAvatars`,
+  `showAuthor`, `showDate`, `showHash`; open panels re-render on change.
+- **Autolinks**: commit text in blame hovers and Commits tooltips now
+  links issue references — "#123" resolves to the repository's GitHub
+  issues automatically, and custom trackers come from the
+  `gitnexus.autolinks` setting ({ prefix, url with <num> }).
+- **AI features** on the platform language model (`vscode.lm`, e.g.
+  Copilot — no key of ours): "Generate Commit Message (AI)" writes a
+  message from the staged diff into the GitNexus SCM input (also on the
+  SCM title bar), and "Explain Commit (AI)" explains any commit into a
+  Markdown document. Both degrade gracefully when no model is present.
+
 ## [1.3.0] — 2026-10-21
 
 ### Added — Phase 8: buffer-accurate blame + Search & Compare

@@ -33,6 +33,16 @@ export class GitNexusScmProvider implements vscode.Disposable {
     this.refresh();
   }
 
+  /** True when this provider serves the given repository root. */
+  hasRoot(rootPath: string): boolean {
+    return normalizeRootPath(this.root.fsPath) === normalizeRootPath(rootPath);
+  }
+
+  /** Set the SCM commit-message input (AI generation lands here). */
+  setCommitMessage(text: string): void {
+    this.scm.inputBox.value = text;
+  }
+
   refresh(): void {
     const snapshot = this.store.get(this.root.fsPath);
     if (!snapshot) return;

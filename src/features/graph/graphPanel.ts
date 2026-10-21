@@ -88,6 +88,10 @@ export class InteractiveGraphPanel {
     private handlers: GraphPanelHandlers
   ) {
     panel.webview.onDidReceiveMessage(message => this.handle(message as PanelMessage));
+    const configWatch = vscode.workspace.onDidChangeConfiguration(event => {
+      if (event.affectsConfiguration("gitnexus.graph")) this.sendWindow(this.windowStart);
+    });
+    panel.onDidDispose(() => configWatch.dispose());
   }
 
   private setGraph(
@@ -165,7 +169,13 @@ export class InteractiveGraphPanel {
   private sendWindow(startRow: number): void {
     const clamped = Math.max(0, Math.min(startRow, Math.max(0, this.model.nodes.length - WINDOW_ROWS)));
     this.windowStart = clamped;
-    const rendered = renderGraphWindowSvg(this.model, clamped, clamped + WINDOW_ROWS, this.selectedId);
+    const config = vscode.workspace.getConfiguration("gitnexus");
+    const rendered = renderGraphWindowSvg(this.model, clamped, clamped + WINDOW_ROWS, this.selectedId, {
+      avatar: config.get<boolean>("graph.showAvatars", true),
+      author: config.get<boolean>("graph.showAuthor", true),
+      date: config.get<boolean>("graph.showDate", true),
+      hash: config.get<boolean>("graph.showHash", false)
+    });
     this.post({ type: "window", startRow: rendered.startRow, svg: rendered.svg });
   }
 
@@ -184,7 +194,7 @@ export class InteractiveGraphPanel {
 <head>
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy"
-  content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'">
+  content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src https://www.gravatar.com">
 <style>
 body { margin:0; overflow:hidden; font-family:var(--vscode-font-family);
   color:var(--vscode-foreground); background:var(--vscode-editor-background); }
@@ -197,6 +207,7 @@ body { margin:0; overflow:hidden; font-family:var(--vscode-font-family);
 .commit-node { cursor:pointer; }
 .commit-node circle { fill:var(--vscode-textLink-foreground); stroke:var(--vscode-editor-background); stroke-width:2; }
 .commit-node text { fill:var(--vscode-foreground); font-size:12px; }
+text.meta { fill:var(--vscode-descriptionForeground); font-size:11px; }
 .commit-node[data-selected="true"] circle { stroke:var(--vscode-editor-foreground); stroke-width:3; }
 .graph-layer path { fill:none; stroke:var(--vscode-textLink-foreground); stroke-width:2; opacity:.6; }
 button, input { color:var(--vscode-input-foreground); background:var(--vscode-input-background);

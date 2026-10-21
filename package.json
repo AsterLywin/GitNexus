@@ -2,7 +2,7 @@
   "name": "gitnexus",
   "displayName": "GitNexus",
   "description": "Open-source, local-first Git intelligence for VS Code.",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "publisher": "gitnexus",
   "license": "Apache-2.0",
   "repository": {
@@ -69,7 +69,9 @@
     "onView:gitnexus.searchCompare",
     "onCommand:gitnexus.searchCommits",
     "onCommand:gitnexus.compareRefs",
-    "onCommand:gitnexus.searchCompareClear"
+    "onCommand:gitnexus.searchCompareClear",
+    "onCommand:gitnexus.generateCommitMessage",
+    "onCommand:gitnexus.explainCommit"
   ],
   "main": "./dist/src/extension.js",
   "contributes": {
@@ -317,6 +319,14 @@
       {
         "command": "gitnexus.searchCompareClear",
         "title": "GitNexus: Clear Search & Compare"
+      },
+      {
+        "command": "gitnexus.generateCommitMessage",
+        "title": "GitNexus: Generate Commit Message (AI)"
+      },
+      {
+        "command": "gitnexus.explainCommit",
+        "title": "GitNexus: Explain Commit (AI)"
       }
     ],
     "configuration": {
@@ -356,6 +366,46 @@
           "default": true,
           "scope": "window",
           "description": "Show file-level and per-function blame CodeLens."
+        },
+        "gitnexus.graph.showAvatars": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show Gravatar avatars in the commit graph."
+        },
+        "gitnexus.graph.showAuthor": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the author column in the commit graph."
+        },
+        "gitnexus.graph.showDate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the date column in the commit graph."
+        },
+        "gitnexus.graph.showHash": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show the short hash column in the commit graph."
+        },
+        "gitnexus.autolinks": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "properties": {
+              "prefix": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "prefix",
+              "url"
+            ]
+          },
+          "description": "Autolink rules for commit text: references like PROJ-123 become links. The url may contain <num> for the reference id. GitHub #123 issue links are added automatically from the remote."
         }
       }
     },
@@ -583,6 +633,11 @@
           "command": "gitnexus.copyHashFor",
           "when": "view == gitnexus.searchCompare && viewItem == commit",
           "group": "2_copy@1"
+        },
+        {
+          "command": "gitnexus.explainCommit",
+          "when": "(view == gitnexus.commits || view == gitnexus.searchCompare) && viewItem == commit",
+          "group": "4_ai@1"
         }
       ],
       "commandPalette": [
@@ -632,6 +687,13 @@
           "command": "gitnexus.blameToggle",
           "group": "1_modification",
           "when": "resourceScheme == file"
+        }
+      ],
+      "scm/title": [
+        {
+          "command": "gitnexus.generateCommitMessage",
+          "when": "scmProvider == gitnexus",
+          "group": "navigation"
         }
       ]
     },

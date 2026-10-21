@@ -65,6 +65,12 @@ export class BlameCache {
     return resolveBlameTarget(this.store, fsPath);
   }
 
+  /** Remote URLs of a repository (autolink rule assembly). */
+  remoteUrlsFor(root: string): string[] {
+    const remotes = this.store.get(root)?.domains?.remotes ?? [];
+    return remotes.flatMap(remote => [remote.fetchUrl, remote.pushUrl].filter((u): u is string => Boolean(u)));
+  }
+
   static relativeOf(root: string, fsPath: string): string {
     return path.relative(root, fsPath).split(path.sep).join("/");
   }

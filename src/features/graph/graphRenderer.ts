@@ -3,7 +3,7 @@ import {
   GraphRenderNode,
   getRenderWindow
 } from "./graphModel";
-import { GraphVirtualRenderer } from "./graphVirtualRenderer";
+import { GraphVirtualRenderer, GraphColumnOptions } from "./graphVirtualRenderer";
 
 export const GRAPH_ROW_HEIGHT = 44;
 export const GRAPH_LANE_WIDTH = 28;
@@ -29,13 +29,16 @@ export function renderGraphWindowSvg(
   model: GraphModel,
   startRow: number,
   endRow: number,
-  selectedId?: string
+  selectedId?: string,
+  columns: GraphColumnOptions = {}
 ): RenderedWindow {
   const window = getRenderWindow(model, startRow, endRow);
   const renderer = new GraphVirtualRenderer(GRAPH_ROW_HEIGHT, GRAPH_LANE_WIDTH);
   return {
-    svg: renderer.render(window, selectedId),
+    svg: renderer.render(window, selectedId, columns),
     startRow: window.startRow,
     endRow: window.endRow
   };
 }
+
+export type { GraphColumnOptions };
