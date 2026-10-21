@@ -3,6 +3,20 @@
 All notable changes to GitNexus are documented here.
 Format follows Keep a Changelog; versions follow SemVer once 1.0 ships.
 
+## [1.6.0] — 2026-10-21
+
+### Added — Phase 11: deep links + provider depth
+- **Reveal Commit in Graph**: deep link from the Commits and
+  Search & Compare views (and the palette) — opens the graph if
+  needed and selects/scrolls to the commit.
+- **GitHub Enterprise**: remotes on hosts declared in
+  `gitnexus.pr.githubEnterpriseHosts` resolve to the GitHub provider
+  with the https://<host>/api/v3 base and enterprise web URLs.
+- **GitLab enrichment**: per-branch MRs now carry CI status (latest
+  pipeline for the head SHA) and review status (approvals API).
+- **Bitbucket enrichment**: per-branch PRs now carry CI status
+  (commit build statuses) and review status (participants/reviewers).
+
 ## [1.5.0] — 2026-10-21
 
 ### Added — Phase 10: GitLab & Bitbucket PR adapters

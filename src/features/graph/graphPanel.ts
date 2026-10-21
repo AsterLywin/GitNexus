@@ -67,6 +67,20 @@ export class InteractiveGraphPanel {
     instance.setGraph(graph, decorations, handlers, notice);
   }
 
+  /**
+   * Deep link: select + scroll to a commit in the open panel.
+   * Returns false when no panel is open or the commit is not in the
+   * loaded model.
+   */
+  static reveal(commitId: string): boolean {
+    if (!this.current) return false;
+    const node = this.current.model.nodes.find(n => n.id === commitId);
+    if (!node) return false;
+    this.current.panel.reveal(vscode.ViewColumn.One);
+    this.current.jumpTo(node);
+    return true;
+  }
+
   static nextMatch(): void {
     this.current?.stepMatch(1);
   }

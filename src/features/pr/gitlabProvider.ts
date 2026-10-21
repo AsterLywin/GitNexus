@@ -1,5 +1,27 @@
-import { PullRequestProvider, PullRequestSummary } from "../../domain/pr";
+import { CiStatus, PullRequestProvider, PullRequestSummary, ReviewStatus } from "../../domain/pr";
 import { GitLabRemote } from "./remoteInfo";
+
+/** Map a GitLab pipeline status to the neutral CI status. Pure. */
+export function mapGitLabPipelineStatus(status: string | undefined): CiStatus {
+  switch (status) {
+    case "success": return "success";
+    case "failed": case "canceled": return "failure";
+    case "running": case "pending": case "created": case "preparing":
+    case "scheduled": case "manual": case "waiting_for_resource": return "pending";
+    default: return "unknown";
+  }
+}
+
+/** Map a GitLab approvals payload to the neutral review status. Pure. */
+export function mapGitLabApproval(data: {
+  approved?: boolean;
+  approvals_required?: number;
+  approved_by?: unknown[];
+}): ReviewStatus {
+  if (data.approved) return "approved";
+  if ((data.approvals_required ?? 0) > 0 || (data.approved_by?.length ?? 0) > 0) return "pending";
+  return "none";
+}
 
 export interface GitLabProviderDeps {
   remote: GitLabRemote;
@@ -70,7 +92,31 @@ export class GitLabPullRequestProvider implements PullRequestProvider {
     const data = await this.request<GitLabMr[]>(
       `/projects/${this.projectId}/merge_requests?state=opened&source_branch=${encodeURIComponent(branch)}`
     );
-    return data[0] ? mapGitLabMergeRequest(data[0]) : undefined;
+    const mr = data[0];
+    if (!mr) return undefined;
+    const summary = mapGitLabMergeRequest(mr);
+    const [ciStatus, reviewStatus] = await Promise.all([
+      this.pipelineStatus(mr.sha).catch(() => "unknown" as CiStatus),
+      this.approvalStatus(mr.iid).catch(() => "none" as ReviewStatus)
+    ]);
+    return { ...summary, ciStatus, reviewStatus };
+  }
+
+  private async pipelineStatus(sha?: string): Promise<CiStatus> {
+    if (!sha) return "unknown";
+    const data = await this.request<Array<{ status: string }>>(
+      `/projects/${this.projectId}/pipelines?sha=${encodeURIComponent(sha)}&per_page=1`
+    );
+    return mapGitLabPipelineStatus(data[0]?.status);
+  }
+
+  private async approvalStatus(iid: number): Promise<ReviewStatus> {
+    const data = await this.request<{
+      approved?: boolean;
+      approvals_required?: number;
+      approved_by?: unknown[];
+    }>(`/projects/${this.projectId}/merge_requests/${iid}/approvals`);
+    return mapGitLabApproval(data);
   }
 
   createUrl(baseBranch: string, headBranch: string): string {

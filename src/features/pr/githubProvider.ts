@@ -38,7 +38,9 @@ export class GitHubPullRequestProvider implements PullRequestProvider {
   constructor(private readonly deps: GitHubProviderDeps) {
     this.repositorySlug = `${deps.remote.owner}/${deps.remote.repo}`;
     this.fetchFn = deps.fetchFn ?? fetch;
-    this.apiBase = deps.apiBase ?? "https://api.github.com";
+    // GitHub Enterprise serves its REST API under https://<host>/api/v3.
+    this.apiBase = deps.apiBase
+      ?? (deps.remote.host ? `https://${deps.remote.host}/api/v3` : "https://api.github.com");
   }
 
   async listOpen(): Promise<PullRequestSummary[]> {

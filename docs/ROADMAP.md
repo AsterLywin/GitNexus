@@ -3,7 +3,7 @@
 **Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit + all five phases (build clean, 41/41 tests pass, VSIX 1.0.0 packaged)
 **Reference specs:** [GIT_ENGINE_SPEC.md](./GIT_ENGINE_SPEC.md) · [REPOSITORY_STATE_MODEL.md](./REPOSITORY_STATE_MODEL.md)
 
-## Where we are: v1.5.0 — GitLens-parity track: Phases 6–10 shipped (…, + GitLab/Bitbucket PR adapters)
+## Where we are: v1.6.0 — GitLens-parity track: Phases 6–11 shipped (…, + deep links, GHE, CI/review enrichment)
 
 | Area | Done | State |
 | --- | --- | --- |
@@ -213,6 +213,24 @@ actions, deep links into the graph from tree views.
 inline graph row actions, deep links from tree views into the graph,
 GitLab/Bitbucket CI + review enrichment (GitHub-only today),
 self-hosted GitHub Enterprise base-URL support.
+
+---
+
+## Phase 11 — Deep links + provider depth → v1.6.0
+
+- [x] **Reveal Commit in Graph** (`gitnexus.revealInGraph`) from tree
+      views and the palette; panel selects + scrolls, with a clear
+      notice beyond the loaded 500-commit window.
+- [x] **GitHub Enterprise**: declared hosts
+      (`gitnexus.pr.githubEnterpriseHosts`) → /api/v3 base + web URLs.
+- [x] **CI/review enrichment for GitLab** (pipelines + approvals) and
+      **Bitbucket** (commit statuses + participants), matching the
+      GitHub per-branch depth.
+
+**Exit criteria:** shipped with tests (70) green. The parity track is
+in diminishing-returns territory; remaining ideas are smaller:
+worktree/repo switcher in the graph panel, per-file history view,
+stash/compare polish. Marketplace publication stays the user's step.
 
 ---
 

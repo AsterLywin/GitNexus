@@ -1,32 +1,32 @@
 export interface GitHubRemote {
   owner: string;
   repo: string;
+  /** Enterprise host; undefined for github.com. */
+  host?: string;
 }
 
 /**
  * Parse a GitHub remote URL (https, ssh, git protocol; with or without
- * the .git suffix) into owner/repo. Returns undefined for non-GitHub or
- * unparsable URLs. Pure — unit-tested.
+ * the .git suffix) into owner/repo. Enterprise hosts are recognized
+ * when declared via `enterpriseHosts`. Returns undefined for
+ * non-GitHub or unparsable URLs. Pure — unit-tested.
  */
-export function parseGitHubRemote(url: string): GitHubRemote | undefined {
-  const trimmed = url.trim();
-  const patterns = [
-    /^git@github\.com:([^/]+)\/(.+?)(?:\.git)?$/,
-    /^ssh:\/\/(?:git@)?github\.com\/([^/]+)\/(.+?)(?:\.git)?$/,
-    /^https?:\/\/github\.com\/([^/]+)\/(.+?)(?:\.git)?\/?$/,
-    /^git:\/\/github\.com\/([^/]+)\/(.+?)(?:\.git)?$/
-  ];
-  for (const pattern of patterns) {
-    const match = trimmed.match(pattern);
-    if (match) return { owner: match[1], repo: match[2] };
-  }
-  return undefined;
+export function parseGitHubRemote(url: string, enterpriseHosts: string[] = []): GitHubRemote | undefined {
+  const parts = splitHostPath(url);
+  if (!parts) return undefined;
+  const isGitHub = parts.host === "github.com" || enterpriseHosts.includes(parts.host);
+  if (!isGitHub) return undefined;
+  const segments = parts.path.split("/");
+  if (segments.length !== 2 || !segments[0] || !segments[1]) return undefined;
+  const remote: GitHubRemote = { owner: segments[0], repo: segments[1] };
+  if (parts.host !== "github.com") remote.host = parts.host;
+  return remote;
 }
 
 export function compareUrl(remote: GitHubRemote, baseBranch: string, headBranch: string): string {
   const base = encodeURIComponent(baseBranch);
   const head = encodeURIComponent(headBranch);
-  return `https://github.com/${remote.owner}/${remote.repo}/compare/${base}...${head}?expand=1`;
+  return `https://${remote.host ?? "github.com"}/${remote.owner}/${remote.repo}/compare/${base}...${head}?expand=1`;
 }
 
 export interface GitLabRemote {
@@ -41,7 +41,7 @@ export interface BitbucketRemote {
 }
 
 function splitHostPath(url: string): { host: string; path: string } | undefined {
-  const trimmed = url.trim().replace(/\.git\/?$/, "");
+  const trimmed = url.trim().replace(/\.git\/?$/, "").replace(/\/$/, "");
   const scp = trimmed.match(/^git@([^:]+):(.+)$/);
   if (scp) return { host: scp[1], path: scp[2] };
   const full = trimmed.match(/^(?:https?|ssh|git):\/\/(?:[^@/]+@)?([^/]+)\/(.+)$/);

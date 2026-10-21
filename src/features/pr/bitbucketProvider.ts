@@ -1,5 +1,23 @@
-import { PullRequestProvider, PullRequestSummary } from "../../domain/pr";
+import { CiStatus, PullRequestProvider, PullRequestSummary, ReviewStatus } from "../../domain/pr";
 import { BitbucketRemote } from "./remoteInfo";
+
+/** Map Bitbucket build statuses for a commit to the neutral CI status. Pure. */
+export function mapBitbucketStatuses(values: Array<{ state: string }>): CiStatus {
+  if (values.length === 0) return "unknown";
+  if (values.some(v => v.state === "FAILED")) return "failure";
+  if (values.some(v => v.state === "INPROGRESS" || v.state === "STOPPED")) return "pending";
+  return "success";
+}
+
+/** Map a Bitbucket PR detail payload to the neutral review status. Pure. */
+export function mapBitbucketReview(detail: {
+  participants?: Array<{ approved?: boolean }>;
+  reviewers?: unknown[];
+}): ReviewStatus {
+  if (detail.participants?.some(p => p.approved)) return "approved";
+  if ((detail.reviewers?.length ?? 0) > 0 || (detail.participants?.length ?? 0) > 0) return "pending";
+  return "none";
+}
 
 export interface BitbucketProviderDeps {
   remote: BitbucketRemote;
@@ -65,7 +83,29 @@ export class BitbucketPullRequestProvider implements PullRequestProvider {
 
   async forBranch(branch: string): Promise<PullRequestSummary | undefined> {
     const open = await this.listOpen();
-    return open.find(pr => pr.headBranch === branch);
+    const found = open.find(pr => pr.headBranch === branch);
+    if (!found) return undefined;
+    const [ciStatus, reviewStatus] = await Promise.all([
+      this.commitStatus(found.headSha).catch(() => "unknown" as CiStatus),
+      this.reviewStatus(found.number).catch(() => "none" as ReviewStatus)
+    ]);
+    return { ...found, ciStatus, reviewStatus };
+  }
+
+  private async commitStatus(sha: string): Promise<CiStatus> {
+    if (!sha) return "unknown";
+    const data = await this.request<{ values: Array<{ state: string }> }>(
+      `${this.repoPath}/commit/${encodeURIComponent(sha)}/statuses?pagelen=50`
+    );
+    return mapBitbucketStatuses(data.values ?? []);
+  }
+
+  private async reviewStatus(id: number): Promise<ReviewStatus> {
+    const data = await this.request<{
+      participants?: Array<{ approved?: boolean }>;
+      reviewers?: unknown[];
+    }>(`${this.repoPath}/pullrequests/${id}`);
+    return mapBitbucketReview(data);
   }
 
   createUrl(baseBranch: string, headBranch: string): string {

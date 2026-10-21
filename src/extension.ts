@@ -126,10 +126,11 @@ export function activate(context: vscode.ExtensionContext): void {
     const ordered = [...remoteList].sort((a, b) =>
       (a.name === "origin" ? 0 : 1) - (b.name === "origin" ? 0 : 1));
     const gitlabHosts = vscode.workspace.getConfiguration("gitnexus").get<string[]>("pr.gitlabHosts", []);
+    const gheHosts = vscode.workspace.getConfiguration("gitnexus").get<string[]>("pr.githubEnterpriseHosts", []);
     for (const remote of ordered) {
       const url = remote.fetchUrl ?? remote.pushUrl ?? "";
 
-      const github = parseGitHubRemote(url);
+      const github = parseGitHubRemote(url, gheHosts);
       if (github) {
         return new GitHubPullRequestProvider({
           remote: github,
@@ -519,6 +520,24 @@ export function activate(context: vscode.ExtensionContext): void {
       }).filter((item): item is NonNullable<typeof item> => Boolean(item));
       await rebasePlanner.execute(root, { upstream, todo: plan });
       await repositories.refresh(root);
+    } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.revealInGraph", async (item?: CommitTreeItem | string) => {
+    try {
+      let commitId: string | undefined;
+      if (typeof item === "string") commitId = item;
+      else if (item instanceof CommitTreeItem) commitId = item.commit.id;
+      if (!commitId) {
+        const root = await resolveWorkspacePath(); if (!root) return;
+        commitId = store.get(root)?.commits[0]?.id;
+        if (!commitId) { void vscode.window.showInformationMessage("GitNexus: no commit to reveal."); return; }
+      }
+      if (InteractiveGraphPanel.reveal(commitId)) return;
+      await vscode.commands.executeCommand("gitnexus.openGraph");
+      if (!InteractiveGraphPanel.reveal(commitId)) {
+        void vscode.window.showInformationMessage("GitNexus: that commit is beyond the loaded graph history (500 commits).");
+      }
     } catch (error) { showError(error); }
   });
 

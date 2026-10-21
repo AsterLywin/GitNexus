@@ -2,7 +2,7 @@
   "name": "gitnexus",
   "displayName": "GitNexus",
   "description": "Open-source, local-first Git intelligence for VS Code.",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "publisher": "gitnexus",
   "license": "Apache-2.0",
   "repository": {
@@ -73,7 +73,8 @@
     "onCommand:gitnexus.generateCommitMessage",
     "onCommand:gitnexus.explainCommit",
     "onCommand:gitnexus.setGitLabToken",
-    "onCommand:gitnexus.setBitbucketCredentials"
+    "onCommand:gitnexus.setBitbucketCredentials",
+    "onCommand:gitnexus.revealInGraph"
   ],
   "main": "./dist/src/extension.js",
   "contributes": {
@@ -337,6 +338,10 @@
       {
         "command": "gitnexus.setBitbucketCredentials",
         "title": "GitNexus: Set Bitbucket Credentials"
+      },
+      {
+        "command": "gitnexus.revealInGraph",
+        "title": "GitNexus: Reveal Commit in Graph"
       }
     ],
     "configuration": {
@@ -424,6 +429,14 @@
             "type": "string"
           },
           "description": "Additional self-hosted GitLab hostnames to recognize for merge requests (hosts containing 'gitlab' and gitlab.com are always recognized)."
+        },
+        "gitnexus.pr.githubEnterpriseHosts": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "GitHub Enterprise hostnames to recognize for pull requests (API base becomes https://<host>/api/v3)."
         }
       }
     },
@@ -656,6 +669,11 @@
           "command": "gitnexus.explainCommit",
           "when": "(view == gitnexus.commits || view == gitnexus.searchCompare) && viewItem == commit",
           "group": "4_ai@1"
+        },
+        {
+          "command": "gitnexus.revealInGraph",
+          "when": "(view == gitnexus.commits || view == gitnexus.searchCompare) && viewItem == commit",
+          "group": "3_graph@1"
         }
       ],
       "commandPalette": [
