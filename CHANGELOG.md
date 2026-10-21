@@ -3,6 +3,27 @@
 All notable changes to GitNexus are documented here.
 Format follows Keep a Changelog; versions follow SemVer once 1.0 ships.
 
+## [3.1.0] — 2026-10-21 — UI polish release (near-10/10 design pass)
+
+### Added — Phase 14: graph v2, graphical settings, Launchpad cards
+- **Graph v2**: rich hover cards (avatar, author, date, hash, refs),
+  a right-click context menu (Show Diff / Checkout / Branch / Tag /
+  Open on Remote / AI Context / Copy Hash), and an in-panel commit
+  details pane (subject, body, author, changed files with statuses)
+  that replaces opening a diff document on every click.
+- **Columns & density popover** in the graph toolbar, backed by the
+  `gitnexus.graph.*` settings; new `gitnexus.graph.density`
+  (comfortable 44px / compact 30px rows).
+- **Branch filter**: All refs vs Current branch history scopes.
+- **Graphical Settings page** (`gitnexus.openSettings`, gear in the
+  Commits view title bar and the graph toolbar): Blame, Graph, AI/BYOK
+  (keys written straight to SecretStorage), Autolinks and provider
+  hosts — all controls write the same `gitnexus.*` settings.
+- **Launchpad redesign**: per-repository cards with provider badges,
+  a live text filter and an All / PRs / Issues segmented filter.
+- **Grouped gutter blame**: annotation text shows only on the first
+  line of a same-commit run (heat tint remains on every line).
+
 ## [3.0.0] — 2026-10-21 — GitLens Pro parity release
 
 ### Added — Phase 13: Launchpad, Code Suggest, BYOK AI, deeper integrations

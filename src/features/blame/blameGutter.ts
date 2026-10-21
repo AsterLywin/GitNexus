@@ -103,21 +103,31 @@ export class BlameGutterController {
 
     const texts: vscode.DecorationOptions[] = [];
     const heats: vscode.DecorationOptions[][] = this.heatTypes.map(() => []);
+    // Grouped gutter (GitLens-style): the annotation text appears only
+    // on the first line of a consecutive run from the same commit;
+    // continuation lines keep their heat tint but no repeated text.
+    let previousCommit: string | undefined;
+    let previousLineIndex = -2;
     for (const entry of lines) {
       const lineIndex = entry.line - 1;
       if (lineIndex < 0 || lineIndex >= document.lineCount) continue;
-      const author = displayAuthor(entry).padEnd(authorWidth, " ");
-      const age = entry.uncommitted ? "now" : formatRelativeShort(entry.timestamp);
-      texts.push({
-        range: new vscode.Range(lineIndex, 0, lineIndex, 0),
-        renderOptions: {
-          before: {
-            contentText: `${author} ${age.padStart(4, " ")} `,
-            color: new vscode.ThemeColor("editorCodeLens.foreground"),
-            fontStyle: "normal"
+      const isRunStart = !(entry.commit === previousCommit && lineIndex === previousLineIndex + 1);
+      previousCommit = entry.commit;
+      previousLineIndex = lineIndex;
+      if (isRunStart) {
+        const author = displayAuthor(entry).padEnd(authorWidth, " ");
+        const age = entry.uncommitted ? "now" : formatRelativeShort(entry.timestamp);
+        texts.push({
+          range: new vscode.Range(lineIndex, 0, lineIndex, 0),
+          renderOptions: {
+            before: {
+              contentText: `${author} ${age.padStart(4, " ")} `,
+              color: new vscode.ThemeColor("editorCodeLens.foreground"),
+              fontStyle: "normal"
+            }
           }
-        }
-      });
+        });
+      }
       if (heatEnabled) {
         const bucket = entry.uncommitted ? 0 : heatBucket(entry.timestamp, newest, oldest);
         heats[bucket].push({ range: new vscode.Range(lineIndex, 0, lineIndex, 0) });

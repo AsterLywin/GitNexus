@@ -3,7 +3,7 @@
 **Baseline:** 2026-10-20 · Code state: v0.1.3 + compile-fix commit + all five phases (build clean, 41/41 tests pass, VSIX 1.0.0 packaged)
 **Reference specs:** [GIT_ENGINE_SPEC.md](./GIT_ENGINE_SPEC.md) · [REPOSITORY_STATE_MODEL.md](./REPOSITORY_STATE_MODEL.md)
 
-## Status: v3.0.0 (2026-10-21) — v2.0.0 completed the roadmap; Phase 13 then closed the GitLens Pro gap (Launchpad, Code Suggest, BYOK AI, deeper integrations). Unscheduled future ideas: per-commit file blame timeline, visual rebase editor, cloud workspace sync.
+## Status: v3.1.0 (2026-10-21) — v2.0.0 completed the roadmap; Phase 13 closed the GitLens Pro gap; Phase 14 was the UI polish pass (graph v2, graphical settings, Launchpad cards, grouped blame). Unscheduled future ideas: per-commit file blame timeline, visual rebase editor, cloud workspace sync.
 
 | Area | Done | State |
 | --- | --- | --- |
@@ -257,6 +257,20 @@ stash/compare polish. Marketplace publication stays the user's step.
 - [x] **Deeper integrations**: GitLab/Bitbucket "#123" autolinks,
       open-commit-on-remote for all three hosts.
 - [x] Worktree management audited — already complete since v1.0/1.2.
+
+---
+
+## Phase 14 — UI polish (near-10/10 design pass) → v3.1.0
+
+- [x] **Graph v2**: hover cards, right-click context menu, in-panel
+      commit details pane, columns & density popover
+      (`gitnexus.graph.density`), All refs / Current branch filter.
+- [x] **Graphical Settings page** (`gitnexus.openSettings`): Blame,
+      Graph, AI/BYOK keys (SecretStorage), Autolinks, provider hosts.
+- [x] **Launchpad redesign**: per-repo cards with provider badges,
+      live text filter, All / PRs / Issues segmented filter.
+- [x] **Grouped gutter blame**: annotation text only on the first
+      line of a same-commit run.
 
 ---
 

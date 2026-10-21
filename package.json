@@ -2,7 +2,7 @@
   "name": "gitnexus",
   "displayName": "GitNexus",
   "description": "Open-source, local-first Git intelligence for VS Code.",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "publisher": "gitnexus",
   "license": "Apache-2.0",
   "repository": {
@@ -364,6 +364,11 @@
         "title": "GitNexus: Open Launchpad"
       },
       {
+        "command": "gitnexus.openSettings",
+        "title": "GitNexus: Open Settings",
+        "icon": "$(gear)"
+      },
+      {
         "command": "gitnexus.setAiApiKey",
         "title": "GitNexus: Set AI API Key"
       },
@@ -437,6 +442,12 @@
           "type": "boolean",
           "default": false,
           "description": "Show the short hash column in the commit graph."
+        },
+        "gitnexus.graph.density": {
+          "type": "string",
+          "enum": ["comfortable", "compact"],
+          "default": "comfortable",
+          "description": "Row density of the commit graph (comfortable = 44px rows, compact = 30px rows)."
         },
         "gitnexus.autolinks": {
           "type": "array",
@@ -619,6 +630,11 @@
           "command": "gitnexus.openLaunchpad",
           "when": "view == gitnexus.commits",
           "group": "navigation@9"
+        },
+        {
+          "command": "gitnexus.openSettings",
+          "when": "view == gitnexus.commits",
+          "group": "navigation@10"
         }
       ],
       "view/item/context": [

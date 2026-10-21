@@ -9,6 +9,7 @@ import { RepositoryManager } from "./app/repositoryManager";
 import { CommandRegistry } from "./app/commandRegistry";
 import { GraphService } from "./features/graph/graphService";
 import { InteractiveGraphPanel } from "./features/graph/graphPanel";
+import { gravatarUrl } from "./features/graph/avatar";
 import { CommitDetailsService } from "./features/commit/commitDetailsService";
 import { BlameService } from "./features/blame/blameService";
 import { BlameCodeLensProvider } from "./features/blame/blameCodeLens";
@@ -53,6 +54,7 @@ import { RemoteService } from "./git/remoteService";
 import { GitHubPullRequestProvider } from "./features/pr/githubProvider";
 import { commitWebUrl, parseBitbucketRemote, parseGitHubRemote, parseGitLabRemote } from "./features/pr/remoteInfo";
 import { LaunchpadPanel } from "./features/launchpad/launchpadPanel";
+import { GitNexusSettingsPanel } from "./features/settings/settingsPanel";
 import { LaunchpadItem, prCheckoutRefspec, slugifyIssueBranch, sortLaunchpadItems } from "./features/launchpad/launchpadModel";
 import { GitLabPullRequestProvider } from "./features/pr/gitlabProvider";
 import { BitbucketPullRequestProvider } from "./features/pr/bitbucketProvider";
@@ -217,9 +219,12 @@ export function activate(context: vscode.ExtensionContext): void {
     return options;
   };
 
+  const graphBranchModes = new Map<string, string>();
+
   const openGraphForRoot = async (root: string): Promise<void> => {
+    const branchMode = graphBranchModes.get(root) ?? "all";
     try {
-      const data = await graph.build(root, 500);
+      const data = await graph.build(root, 500, { allRefs: branchMode === "all" });
       const refSnapshot = await refs.list(root);
       const decorations = buildRefDecorations(data, refSnapshot);
       // Layer C: open PRs as decorations, when a GitHub remote + an
@@ -249,11 +254,25 @@ export function activate(context: vscode.ExtensionContext): void {
         onSelect: async commitId => {
           try {
             const details = await commitDetails.get(root, commitId);
-            const document = await vscode.workspace.openTextDocument({
-              language: "diff",
-              content: details.diff || `Commit ${details.commit.id}\n\n${details.commit.subject}\n`
+            let files: Array<{ status: string; path: string }> = [];
+            try {
+              files = await diffs.nameStatus(root, [`${commitId}^!`]);
+            } catch {
+              files = details.files.map(path => ({ status: "•", path }));
+            }
+            InteractiveGraphPanel.showDetails({
+              id: details.commit.id,
+              subject: details.commit.subject,
+              body: details.commit.body,
+              authorName: details.commit.authorName,
+              authorEmail: details.commit.authorEmail,
+              avatarUrl: gravatarUrl(details.commit.authorEmail, 64),
+              dateIso: details.commit.authorTimestamp > 0
+                ? new Date(details.commit.authorTimestamp * 1000).toISOString().slice(0, 16).replace("T", " ")
+                : "",
+              parents: details.commit.parents,
+              files
             });
-            await vscode.window.showTextDocument(document, { preview: false });
           } catch (error) {
             showError(error);
           }
@@ -263,6 +282,27 @@ export function activate(context: vscode.ExtensionContext): void {
         },
         onCommitAction: async (action, commitId) => {
           try {
+            if (action === "showDiff") {
+              const details = await commitDetails.get(root, commitId);
+              const document = await vscode.workspace.openTextDocument({
+                language: "diff",
+                content: details.diff || `Commit ${details.commit.id}\n\n${details.commit.subject}\n`
+              });
+              await vscode.window.showTextDocument(document, { preview: false });
+              return;
+            }
+            if (action === "openRemote") {
+              const snapshotForRemote = store.get(root);
+              const remotes = snapshotForRemote?.domains?.remotes ?? [];
+              const ordered = [...remotes].sort((a, b) => (a.name === "origin" ? 0 : 1) - (b.name === "origin" ? 0 : 1));
+              const gheHosts = vscode.workspace.getConfiguration("gitnexus").get<string[]>("pr.githubEnterpriseHosts", []);
+              for (const remote of ordered) {
+                const url = commitWebUrl(remote.fetchUrl ?? remote.pushUrl ?? "", commitId, gheHosts);
+                if (url) { await vscode.env.openExternal(vscode.Uri.parse(url)); return; }
+              }
+              void vscode.window.showInformationMessage("GitNexus: no GitHub, GitLab or Bitbucket remote to open this commit on.");
+              return;
+            }
             if (action === "aiContext") {
               aiStore.addToSelection(commitId);
               updateAiStatus();
@@ -296,8 +336,13 @@ export function activate(context: vscode.ExtensionContext): void {
             showError(error);
           }
         },
-        onSwitchRepo: nextRoot => { void openGraphForRoot(nextRoot); }
-      }, notice, repoOptionsFor(root), root);
+        onSwitchRepo: nextRoot => { void openGraphForRoot(nextRoot); },
+        onBranchFilter: mode => {
+          graphBranchModes.set(root, mode);
+          void openGraphForRoot(root);
+        },
+        onOpenSettings: () => { void vscode.commands.executeCommand("gitnexus.openSettings"); }
+      }, notice, repoOptionsFor(root), root, branchMode);
     } catch (error) {
       showError(error);
     }
@@ -817,6 +862,10 @@ export function activate(context: vscode.ExtensionContext): void {
       );
       if (picked) await vscode.env.openExternal(vscode.Uri.parse(picked.url));
     } catch (error) { showError(error); }
+  });
+
+  commands.register("gitnexus.openSettings", () => {
+    GitNexusSettingsPanel.open(context);
   });
 
   commands.register("gitnexus.openLaunchpad", async () => {

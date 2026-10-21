@@ -30,10 +30,11 @@ export function renderGraphWindowSvg(
   startRow: number,
   endRow: number,
   selectedId?: string,
-  columns: GraphColumnOptions = {}
+  columns: GraphColumnOptions = {},
+  rowHeight: number = GRAPH_ROW_HEIGHT
 ): RenderedWindow {
   const window = getRenderWindow(model, startRow, endRow);
-  const renderer = new GraphVirtualRenderer(GRAPH_ROW_HEIGHT, GRAPH_LANE_WIDTH);
+  const renderer = new GraphVirtualRenderer(rowHeight, GRAPH_LANE_WIDTH);
   return {
     svg: renderer.render(window, selectedId, columns),
     startRow: window.startRow,
